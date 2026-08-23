@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBS Alert Dashboard — ศูนย์เตือนภัยพิบัติแห่งชาติ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- ============================================================================
+  CBS ALERT DASHBOARD — วิธีเชื่อมต่อฐานข้อมูลจริง
+  ============================================================================
+  1. เปิด Google Sheets (ไฟล์ cbs_alert_database) ที่ผูก Apps Script (Code.gs) อยู่แล้ว
+  2. เพิ่มฟังก์ชัน doGet(e) ตามไฟล์ "API_Endpoint.gs" ที่แนบมาด้วย แล้ว Deploy เป็น Web App
+     (Execute as: Me, Who has access: Anyone) จะได้ URL ลงท้ายด้วย /exec
+  3. นำ URL นั้นมาใส่ใน CONFIG.API_URL ด้านล่าง แล้วอัปโหลดไฟล์นี้ขึ้น GitHub Pages (ฟรี)
+  4. ถ้ายังไม่ใส่ URL แดชบอร์ดจะรันด้วย "ข้อมูลตัวอย่าง" ให้ดูหน้าตาไปก่อน (มีแบนเนอร์แจ้งเตือนชัดเจน)
+  ============================================================================ -->
+<style>
+:root{
+  --bg:#F2F4F5; --surface:#FFFFFF; --border:#E3E7EA;
+  --text:#1F2A2E; --text-soft:#657077;
+  --brand:#0E7C5A; --brand-soft:#E4F4EE;
+  --alert:#D6483A; --alert-soft:#FBEAE8;
+  --amber:#C9832B; --amber-soft:#FBF1E2;
+  --indigo:#3E5FA8;
+  --radius:10px;
+  --shadow:0 1px 2px rgba(20,30,30,.04), 0 4px 14px rgba(20,30,30,.05);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Sarabun',sans-serif;font-size:14px;line-height:1.5;}
+h1,h2,h3{font-family:'Sarabun',sans-serif;margin:0;}
+button,select,input{font-family:'Sarabun',sans-serif;}
+a{color:var(--brand);}
+
+/* ---------- header ---------- */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 22px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:50;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.topbar-badge{width:38px;height:38px;border-radius:9px;background:var(--brand);color:#fff;display:flex;
+  align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;}
+.topbar-title{font-weight:700;font-size:17px;letter-spacing:.1px;}
+.topbar-sub{font-size:12px;color:var(--text-soft);}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.status-pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-soft);
+  background:var(--brand-soft);border-radius:20px;padding:5px 12px;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--brand);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;
+  padding:8px 13px;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:.15s;}
+.btn:hover{border-color:var(--brand);color:var(--brand);}
+.btn-brand{background:var(--brand);border-color:var(--brand);color:#fff;}
+.btn-brand:hover{opacity:.9;color:#fff;}
+.demo-banner{display:none;background:var(--amber-soft);color:#8a5a12;border-bottom:1px solid #f0dcb0;
+  font-size:12.5px;padding:8px 22px;text-align:center;}
+
+/* ---------- layout ---------- */
+.wrap{max-width:1400px;margin:0 auto;padding:18px 22px 40px;}
+.section-title{font-size:14px;font-weight:700;margin:26px 0 10px;display:flex;align-items:center;gap:8px;color:var(--text);}
+.section-title .idx{font-size:11px;font-weight:700;color:#fff;background:var(--brand);border-radius:5px;padding:1px 7px;}
+
+/* ---------- filter bar ---------- */
+.filters{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;box-shadow:var(--shadow);}
+.f-group{display:flex;flex-direction:column;gap:4px;min-width:140px;}
+.f-group label{font-size:11px;color:var(--text-soft);font-weight:600;}
+.f-group select,.f-group input[type=date]{padding:7px 9px;border:1px solid var(--border);border-radius:7px;
+  font-size:13px;background:#fff;color:var(--text);}
+.f-clear{margin-left:auto;}
+
+/* ---------- KPI ---------- */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);}
+.kpi-label{font-size:12px;color:var(--text-soft);font-weight:600;}
+.kpi-value{font-size:30px;font-weight:800;margin-top:4px;color:var(--text);}
+.kpi-sub{font-size:11.5px;color:var(--text-soft);margin-top:6px;line-height:1.6;}
+.kpi-sub b{color:var(--text);}
+.kpi-accent-alert .kpi-value{color:var(--alert);}
+.kpi-accent-amber .kpi-value{color:var(--amber);}
+
+/* ---------- charts ---------- */
+.chart-row{display:grid;grid-template-columns:2fr 1.1fr;gap:14px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.card-head h3{font-size:13.5px;font-weight:700;}
+.seg{display:flex;background:var(--bg);border-radius:7px;padding:2px;gap:2px;}
+.seg button{border:none;background:transparent;font-size:11.5px;padding:5px 10px;border-radius:6px;
+  cursor:pointer;color:var(--text-soft);font-weight:600;}
+.seg button.active{background:#fff;color:var(--brand);box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.chart-box{position:relative;height:260px;}
+
+/* ---------- map ---------- */
+.map-row{display:grid;grid-template-columns:2.3fr 1fr;gap:14px;}
+#map{height:420px;border-radius:8px;overflow:hidden;background:#eef1f2;}
+.legend-box{font-size:11.5px;color:var(--text-soft);margin-top:8px;display:flex;align-items:center;gap:8px;}
+.legend-scale{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#EAF3EF,var(--brand));}
+.hotspot-list{list-style:none;margin:0;padding:0;}
+.hotspot-list li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;
+  border-bottom:1px solid var(--border);font-size:12.5px;}
+.hotspot-list li:last-child{border-bottom:none;}
+.hotspot-rank{width:20px;height:20px;border-radius:5px;background:var(--brand-soft);color:var(--brand);
+  font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;margin-right:8px;}
+.hotspot-name{flex:1;color:var(--text);}
+.hotspot-count{font-weight:700;color:var(--text);}
+
+/* ---------- latest alert hero ---------- */
+.hero-alert{background:linear-gradient(135deg,#12332B,#0E7C5A);color:#fff;border-radius:var(--radius);
+  padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.hero-alert::before{content:'';position:absolute;right:-40px;top:-40px;width:160px;height:160px;
+  border-radius:50%;background:rgba(255,255,255,.06);}
+.hero-top{display:flex;align-items:center;gap:8px;font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;
+  opacity:.85;margin-bottom:8px;}
+.hero-live-dot{width:7px;height:7px;border-radius:50%;background:#6BE3B0;animation:pulse 1.4s infinite;}
+.hero-title{font-size:17px;font-weight:700;margin-bottom:6px;}
+.hero-msg{font-size:13px;opacity:.92;max-width:820px;}
+.hero-meta{display:flex;gap:16px;margin-top:12px;font-size:11.5px;opacity:.85;flex-wrap:wrap;}
+
+/* ---------- table ---------- */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+thead th{text-align:left;font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;
+  letter-spacing:.3px;padding:9px 10px;border-bottom:2px solid var(--border);white-space:nowrap;}
+tbody td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text);}
+tbody tr:hover{background:#FAFBFB;}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
+.badge-event{background:var(--indigo);color:#fff;}
+.badge-disaster{background:var(--amber-soft);color:#8a5a12;}
+.msg-cell{max-width:340px;color:var(--text-soft);}
+.msg-cell .full{display:none;}
+.msg-cell.expanded .full{display:inline;}
+.msg-cell .short{cursor:pointer;}
+.msg-cell .toggle{color:var(--brand);cursor:pointer;font-size:11px;font-weight:600;margin-left:4px;}
+.table-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--text-soft);}
+.search-box{padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:12.5px;width:220px;}
+
+/* ---------- footer ---------- */
+.footer{margin-top:34px;background:var(--surface);border-top:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;
+  padding:24px 26px;}
+.footer-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:24px;}
+.footer h4{font-size:13px;margin-bottom:8px;color:var(--text);}
+.footer p, .footer a{font-size:12.5px;color:var(--text-soft);line-height:1.9;text-decoration:none;}
+.footer a:hover{color:var(--brand);}
+.footer-bottom{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text-soft);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+
+@media (max-width:980px){
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .chart-row,.map-row,.footer-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner" id="demoBanner">
+  ⚠ กำลังแสดง <b>ข้อมูลตัวอย่าง (Demo)</b> — ยังไม่ได้เชื่อมต่อฐานข้อมูลจริง ดูวิธีเชื่อมต่อได้ในคอมเมนต์ต้นไฟล์ (CONFIG.API_URL)
+</div>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-badge">CBS</div>
+    <div>
+      <div class="topbar-title">แดชบอร์ดการแจ้งเตือน Cell Broadcast</div>
+      <div class="topbar-sub">ศูนย์เตือนภัยพิบัติแห่งชาติ (NDWC) · กรมป้องกันและบรรเทาสาธารณภัย (DDPM)</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="status-pill"><span class="status-dot"></span><span id="lastUpdated">กำลังโหลดข้อมูล...</span></div>
+    <button class="btn" id="refreshBtn">↻ รีเฟรช</button>
+    <button class="btn" id="csvBtn">⬇ ดาวน์โหลด CSV</button>
+    <button class="btn btn-brand" id="pngBtn">🖼 บันทึกภาพ (16:9)</button>
+  </div>
+</div>
+
+<div class="wrap" id="captureArea">
+
+  <div class="section-title"><span class="idx">1</span> ตัวกรองข้อมูล</div>
+  <div class="filters">
+    <div class="f-group"><label>วันที่เริ่มต้น</label><input type="date" id="fDateFrom"></div>
+    <div class="f-group"><label>วันที่สิ้นสุด</label><input type="date" id="fDateTo"></div>
+    <div class="f-group"><label>ภูมิภาค</label><select id="fRegion"><option value="">ทั้งหมด</option></select></div>
+    <div class="f-group"><label>จังหวัด</label><select id="fProvince"><option value="">ทั้งหมด</option></select></div>
+    <div class="f-group"><label>อำเภอ</label><select id="fAmphoe"><option value="">ทั้งหมด</option></select></div>
+    <div class="f-group"><label>ตำบล</label><select id="fTambon"><option value="">ทั้งหมด</option></select></div>
+    <div class="f-group"><label>ประเภทภัยพิบัติ</label><select id="fDisaster"><option value="">ทั้งหมด</option></select></div>
+    <div class="f-group"><label>ประเภทการแจ้งเตือน</label><select id="fEvent"><option value="">ทั้งหมด</option></select></div>
+    <button class="btn f-clear" id="clearFilters">✕ ล้างตัวกรอง</button>
+  </div>
+
+  <div class="section-title"><span class="idx">2</span> ภาพรวม (KPI)</div>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">การส่งทั้งหมด</div>
+      <div class="kpi-value" id="kpiTotal">–</div>
+      <div class="kpi-sub" id="kpiTotalSub">ตามช่วงเวลา/ตัวกรองที่เลือก</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">แยกตามประเภทการแจ้งเตือน</div>
+      <div class="kpi-value" id="kpiEventTop">–</div>
+      <div class="kpi-sub" id="kpiEventSub">–</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">จังหวัดที่ได้รับข้อความ</div>
+      <div class="kpi-value" id="kpiProvinces">–</div>
+      <div class="kpi-sub">จาก 77 จังหวัดทั่วประเทศ</div>
+    </div>
+    <div class="kpi-card kpi-accent-alert">
+      <div class="kpi-label">ประเภทภัยที่ส่งมากที่สุด</div>
+      <div class="kpi-value" id="kpiTopDisaster" style="font-size:19px;">–</div>
+      <div class="kpi-sub" id="kpiTopDisasterSub">–</div>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="idx">3</span> ไทม์ไลน์การส่งข้อความ &nbsp;/&nbsp; <span class="idx">4</span> แยกตามประเภทภัยพิบัติ</div>
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-head">
+        <h3>ไทม์ไลน์การส่ง CBS</h3>
+        <div class="seg" id="timelineSeg">
+          <button data-g="month" class="active">รายเดือน</button>
+          <button data-g="year">รายปี</button>
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="timelineChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>จำนวนการส่งแยกตามประเภทภัยพิบัติ</h3></div>
+      <div class="chart-box"><canvas id="disasterChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="idx">5</span> แผนที่การแจ้งเตือนรายพื้นที่</div>
+  <div class="map-row">
+    <div class="card">
+      <div class="card-head">
+        <h3>แผนที่ตามจังหวัด (คลิกจังหวัดเพื่อกรอง)</h3>
+        <span style="font-size:11px;color:var(--text-soft);">Basemap: CARTO Positron (ฟรี) · ขอบเขต: OSS Thailand GeoJSON</span>
+      </div>
+      <div id="map"></div>
+      <div class="legend-box"><span>น้อย</span><div class="legend-scale"></div><span>มาก</span></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>พื้นที่ที่ได้รับแจ้งเตือนบ่อยที่สุด (Top 8)</h3></div>
+      <ul class="hotspot-list" id="hotspotList"></ul>
+    </div>
+  </div>
+
+  <div class="section-title"><span class="idx">6</span> ข้อความแจ้งเตือน</div>
+  <div class="hero-alert" id="heroAlert">
+    <div class="hero-top"><span class="hero-live-dot"></span> ข้อความล่าสุด</div>
+    <div class="hero-title" id="heroTitle">–</div>
+    <div class="hero-msg" id="heroMsg">–</div>
+    <div class="hero-meta">
+      <span id="heroTime">–</span><span id="heroAreas">–</span><span id="heroEvent">–</span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-head">
+      <h3>ประวัติการส่งทั้งหมด</h3>
+      <input class="search-box" id="tableSearch" placeholder="ค้นหาหัวเรื่อง / ข้อความ / จังหวัด...">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>วันที่ / เวลา</th><th>จังหวัด</th><th>ประเภทภัย</th><th>ประเภทเตือน</th>
+          <th>หัวเรื่อง</th><th>ข้อความ</th><th>พื้นที่</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="table-foot">
+      <span id="tableCount">–</span>
+      <div id="pagination"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="footer-grid">
+    <div>
+      <h4>ศูนย์เตือนภัยพิบัติแห่งชาติ (NDWC)</h4>
+      <p>กรมป้องกันและบรรเทาสาธารณภัย (DDPM)<br>
+      กระทรวงมหาดไทย</p>
+    </div>
+    <div>
+      <h4>ช่องทางติดต่อ</h4>
+      <p>สายด่วนนิรภัย 1784 (24 ชั่วโมง)<br>
+      โทรสาร: 0-2243-0674<br>
+      อีเมล: contact@disaster.go.th</p>
+    </div>
+    <div>
+      <h4>ลิงก์ที่เกี่ยวข้อง</h4>
+      <p><a href="https://www.disaster.go.th" target="_blank">เว็บไซต์ ปภ.</a><br>
+      <a href="https://www.ndwc.go.th" target="_blank">เว็บไซต์ ศูนย์เตือนภัยพิบัติแห่งชาติ</a></p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© ศูนย์เตือนภัยพิบัติแห่งชาติ · ข้อมูลอัปเดตอัตโนมัติจาก Google Sheets</span>
+    <span id="footerUpdated">–</span>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   CONFIG — แก้ตรงนี้จุดเดียวเพื่อเชื่อมต่อฐานข้อมูลจริง
+   ============================================================================ */
+const CONFIG = {
+  API_URL: 'https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnRya9i8C4Te4ZBHo2NaYT_KcYmnQEVprwUbjN5hHqA46aW-4ejLFcHNPSL5e5etZ9YZrWJZReh3HCcqFTdQjxjZyZVtY9KQGVd6KyQPZ4-mkhNj5g_y_QXS950dLAFoZCvZIQcj9hC-kQAuRvasmZUXB_x7fp8jg2cymdZs4lkNPvoZ_jHLEp9kuK1-mhocFBrP8iSoM7M9sLwYuowVmrmihmEOB_bZfbRGh66KitkkOoH8x9sQpKtNpIrYGxYh9moLLzjs-TcLwt-64JcS_T7EsihqtQ&lib=MVA4VUG12YfaY2rtOMz-BEZh-yMc7_ecZ',                 // <-- วาง URL ของ Web App (.../exec) ที่ได้จาก Apps Script ตรงนี้
+  REFRESH_INTERVAL_MS: 5 * 60 * 1000,  // อัปเดตข้อมูลอัตโนมัติทุก 5 นาที
+  JSONP_TIMEOUT_MS: 8000,
+};
+
+/* ============================================================================
+   รายชื่อจังหวัดมาตรฐาน (77 จังหวัด) — ใช้เป็นฐานสำหรับตัวกรองภูมิภาค/จังหวัด
+   province_code ตรงกับ dim_province ในฐานข้อมูลจริงเป๊ะ (2 หลักแรกของ amphoe_code)
+   ============================================================================ */
+const PROVINCES = [{"code":"10","th":"กรุงเทพมหานคร","en":"Bangkok","region":"ภาคกลาง"},{"code":"11","th":"สมุทรปราการ","en":"Samut Prakan","region":"ภาคกลาง"},{"code":"12","th":"นนทบุรี","en":"Nonthaburi","region":"ภาคกลาง"},{"code":"13","th":"ปทุมธานี","en":"Pathum Thani","region":"ภาคกลาง"},{"code":"14","th":"พระนครศรีอยุธยา","en":"Phra Nakhon Si Ayutthaya","region":"ภาคกลาง"},{"code":"15","th":"อ่างทอง","en":"Ang Thong","region":"ภาคกลาง"},{"code":"16","th":"ลพบุรี","en":"Lopburi","region":"ภาคกลาง"},{"code":"17","th":"สิงห์บุรี","en":"Sing Buri","region":"ภาคกลาง"},{"code":"18","th":"ชัยนาท","en":"Chai Nat","region":"ภาคกลาง"},{"code":"19","th":"สระบุรี","en":"Saraburi","region":"ภาคกลาง"},{"code":"20","th":"ชลบุรี","en":"Chon Buri","region":"ภาคกลาง"},{"code":"21","th":"ระยอง","en":"Rayong","region":"ภาคกลาง"},{"code":"22","th":"จันทบุรี","en":"Chanthaburi","region":"ภาคกลาง"},{"code":"23","th":"ตราด","en":"Trat","region":"ภาคกลาง"},{"code":"24","th":"ฉะเชิงเทรา","en":"Chachoengsao","region":"ภาคกลาง"},{"code":"25","th":"ปราจีนบุรี","en":"Prachin Buri","region":"ภาคกลาง"},{"code":"26","th":"นครนายก","en":"Nakhon Nayok","region":"ภาคกลาง"},{"code":"27","th":"สระแก้ว","en":"Sa Kaeo","region":"ภาคกลาง"},{"code":"30","th":"นครราชสีมา","en":"Nakhon Ratchasima","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"31","th":"บุรีรัมย์","en":"Buri Ram","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"32","th":"สุรินทร์","en":"Surin","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"33","th":"ศรีสะเกษ","en":"Si Sa Ket","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"34","th":"อุบลราชธานี","en":"Ubon Ratchathani","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"35","th":"ยโสธร","en":"Yasothon","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"36","th":"ชัยภูมิ","en":"Chaiyaphum","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"37","th":"อำนาจเจริญ","en":"Amnat Charoen","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"38","th":"บึงกาฬ","en":"Bueng Kan","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"39","th":"หนองบัวลำภู","en":"Nong Bua Lam Phu","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"40","th":"ขอนแก่น","en":"Khon Kaen","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"41","th":"อุดรธานี","en":"Udon Thani","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"42","th":"เลย","en":"Loei","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"43","th":"หนองคาย","en":"Nong Khai","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"44","th":"มหาสารคาม","en":"Maha Sarakham","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"45","th":"ร้อยเอ็ด","en":"Roi Et","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"46","th":"กาฬสินธุ์","en":"Kalasin","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"47","th":"สกลนคร","en":"Sakon Nakhon","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"48","th":"นครพนม","en":"Nakhon Phanom","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"49","th":"มุกดาหาร","en":"Mukdahan","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"50","th":"เชียงใหม่","en":"Chiang Mai","region":"ภาคเหนือ"},{"code":"51","th":"ลำพูน","en":"Lamphun","region":"ภาคเหนือ"},{"code":"52","th":"ลำปาง","en":"Lampang","region":"ภาคเหนือ"},{"code":"53","th":"อุตรดิตถ์","en":"Uttaradit","region":"ภาคเหนือ"},{"code":"54","th":"แพร่","en":"Phrae","region":"ภาคเหนือ"},{"code":"55","th":"น่าน","en":"Nan","region":"ภาคเหนือ"},{"code":"56","th":"พะเยา","en":"Phayao","region":"ภาคเหนือ"},{"code":"57","th":"เชียงราย","en":"Chiang Rai","region":"ภาคเหนือ"},{"code":"58","th":"แม่ฮ่องสอน","en":"Mae Hong Son","region":"ภาคเหนือ"},{"code":"60","th":"นครสวรรค์","en":"Nakhon Sawan","region":"ภาคเหนือ"},{"code":"61","th":"อุทัยธานี","en":"Uthai Thani","region":"ภาคเหนือ"},{"code":"62","th":"กำแพงเพชร","en":"Kamphaeng Phet","region":"ภาคเหนือ"},{"code":"63","th":"ตาก","en":"Tak","region":"ภาคเหนือ"},{"code":"64","th":"สุโขทัย","en":"Sukhothai","region":"ภาคเหนือ"},{"code":"65","th":"พิษณุโลก","en":"Phitsanulok","region":"ภาคเหนือ"},{"code":"66","th":"พิจิตร","en":"Phichit","region":"ภาคเหนือ"},{"code":"67","th":"เพชรบูรณ์","en":"Phetchabun","region":"ภาคเหนือ"},{"code":"70","th":"ราชบุรี","en":"Ratchaburi","region":"ภาคกลาง"},{"code":"71","th":"กาญจนบุรี","en":"Kanchanaburi","region":"ภาคกลาง"},{"code":"72","th":"สุพรรณบุรี","en":"Suphan Buri","region":"ภาคกลาง"},{"code":"73","th":"นครปฐม","en":"Nakhon Pathom","region":"ภาคกลาง"},{"code":"74","th":"สมุทรสาคร","en":"Samut Sakhon","region":"ภาคกลาง"},{"code":"75","th":"สมุทรสงคราม","en":"Samut Songkhram","region":"ภาคกลาง"},{"code":"76","th":"เพชรบุรี","en":"Phetchaburi","region":"ภาคกลาง"},{"code":"77","th":"ประจวบคีรีขันธ์","en":"Prachuap Khiri Khan","region":"ภาคกลาง"},{"code":"80","th":"นครศรีธรรมราช","en":"Nakhon Si Thammarat","region":"ภาคใต้"},{"code":"81","th":"กระบี่","en":"Krabi","region":"ภาคใต้"},{"code":"82","th":"พังงา","en":"Phangnga","region":"ภาคใต้"},{"code":"83","th":"ภูเก็ต","en":"Phuket","region":"ภาคใต้"},{"code":"84","th":"สุราษฎร์ธานี","en":"Surat Thani","region":"ภาคใต้"},{"code":"85","th":"ระนอง","en":"Ranong","region":"ภาคใต้"},{"code":"86","th":"ชุมพร","en":"Chumphon","region":"ภาคใต้"},{"code":"90","th":"สงขลา","en":"Songkhla","region":"ภาคใต้"},{"code":"91","th":"สตูล","en":"Satun","region":"ภาคใต้"},{"code":"92","th":"ตรัง","en":"Trang","region":"ภาคใต้"},{"code":"93","th":"พัทลุง","en":"Phatthalung","region":"ภาคใต้"},{"code":"94","th":"ปัตตานี","en":"Pattani","region":"ภาคใต้"},{"code":"95","th":"ยะลา","en":"Yala","region":"ภาคใต้"},{"code":"96","th":"นราธิวาส","en":"Narathiwat","region":"ภาคใต้"}];
+const PROVINCE_BY_CODE = Object.fromEntries(PROVINCES.map(p => [p.code, p]));
+const PROVINCE_BY_EN = Object.fromEntries(PROVINCES.map(p => [p.en, p]));
+
+const DISASTER_COLORS = ['#0E7C5A','#C9832B','#3E5FA8','#D6483A','#7A5FB8','#2FA0A6',
+  '#B8862E','#5B7DBB','#C15C7A','#4D8F6B','#9C6B3E','#6F7A8C','#B45252','#3F8A8F'];
+
+/* ============================================================================
+   STATE
+   ============================================================================ */
+let RAW = null;           // ผลลัพธ์ดิบจาก API (แต่ละชีทเป็น array)
+let ALERTS = [];          // 1 แถว = 1 alert (join ครบทุก dim แล้ว)
+let AREA_ROWS = [];       // 1 แถว = 1 พื้นที่ต่อ alert (สำหรับแผนที่/ตัวกรองพื้นที่)
+let timelineChart, disasterChart, leafletMap, geoLayer;
+let timelineGranularity = 'month';
+let tablePage = 1;
+const PAGE_SIZE = 12;
+
+/* ============================================================================
+   1) โหลดข้อมูล — JSONP (ไม่ใช้ fetch ธรรมดา เพราะ GitHub Pages กับ Apps Script
+      คนละ origin กัน CORS จะบล็อก fetch/XHR ปกติ — ต้องใช้ JSONP callback)
+   ============================================================================ */
+function loadData() {
+  if (!CONFIG.API_URL) { useDemoData(); return; }
+  document.getElementById('demoBanner').style.display = 'none';
+  const cbName = 'cbsData_' + Date.now();
+  const script = document.createElement('script');
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    script.remove();
+    delete window[cbName];
+    console.warn('CBS Dashboard: ดึงข้อมูลจริงไม่สำเร็จภายในเวลาที่กำหนด ใช้ข้อมูลตัวอย่างแทน');
+    useDemoData();
+  }, CONFIG.JSONP_TIMEOUT_MS);
+
+  window[cbName] = (data) => {
+    if (timedOut) return;
+    clearTimeout(timer);
+    script.remove();
+    delete window[cbName];
+    RAW = data;
+    buildModel();
+    renderAll(true);
+  };
+  script.src = CONFIG.API_URL + (CONFIG.API_URL.includes('?') ? '&' : '?') + 'callback=' + cbName;
+  script.onerror = () => { if (!timedOut) { clearTimeout(timer); useDemoData(); } };
+  document.body.appendChild(script);
+}
+
+function useDemoData() {
+  document.getElementById('demoBanner').style.display = 'block';
+  RAW = generateDemoData();
+  buildModel();
+  renderAll(true);
+}
+
+/* ============================================================================
+   2) แปลงข้อมูลดิบเป็น ALERTS[] และ AREA_ROWS[] (join ทุกตารางไว้ล่วงหน้า)
+   ============================================================================ */
+function buildModel() {
+  const idx = (arr, key) => Object.fromEntries((arr || []).map(r => [String(r[key]), r]));
+  const eventIdx = idx(RAW.dim_event, 'event_id');
+  const disasterIdx = idx(RAW.dim_disaster, 'disaster_id');
+  const senderIdx = idx(RAW.dim_sender, 'sender_id');
+  const messageIdx = idx(RAW.dim_message, 'message_id');
+
+  ALERTS = (RAW.fact_cb || []).map(f => {
+    const ev = eventIdx[f.event_id] || {};
+    const ds = disasterIdx[f.disaster_id] || {};
+    const sd = senderIdx[f.sender_id] || {};
+    const msg = messageIdx[f.message_id] || {};
+    return {
+      alert_id: f.alert_id, date_id: f.date_id,
+      date: parseDateId(f.date_id), time: f.time,
+      event_id: f.event_id, event_th: ev.event_th || f.event_id, event_en: ev.event_en || f.event_id,
+      sender_name: sd.sender_name || f.sender_id,
+      disaster_id: f.disaster_id, disaster_name: ds.disaster_name || 'ไม่ระบุ',
+      title: f.title || '', message_th: msg.message_th || '',
+      duration_hour: f.duration_hour, send_count: f.send_count || 1,
+    };
+  });
+
+  const provIdx = idx(RAW.dim_province, 'province_code');
+  const ampIdx = idx(RAW.dim_amphoe, 'amphoe_code');
+  const tamIdx = idx(RAW.dim_tambon, 'tambon_code');
+  const alertIdx = Object.fromEntries(ALERTS.map(a => [a.alert_id, a]));
+
+  AREA_ROWS = (RAW.bridge_alert_location || []).map(b => {
+    const a = alertIdx[b.alert_id];
+    if (!a) return null;
+    const prov = provIdx[b.province_code] || {};
+    const amp = ampIdx[b.amphoe_code] || {};
+    const tam = tamIdx[b.tambon_code] || {};
+    return Object.assign({}, a, {
+      level: b.level, province_code: b.province_code, province_name: prov.province_name_th,
+      region: prov.region, amphoe_code: b.amphoe_code, amphoe_name: amp.amphoe_name_th,
+      tambon_code: b.tambon_code, tambon_name: tam.tambon_name_th,
+    });
+  }).filter(Boolean);
+}
+
+function parseDateId(dateId) {
+  if (!dateId) return null;
+  const m = String(dateId).match(/(\d{4})(\d{2})(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+}
+
+/* ============================================================================
+   3) ตัวกรอง — ใช้ AREA_ROWS เป็นฐานเสมอ (เพราะมีทั้ง attribute ของ alert + พื้นที่)
+      แล้วค่อยยุบกลับเป็น ALERTS ที่ไม่ซ้ำ (dedupe by alert_id) สำหรับ KPI/กราฟ/ตาราง
+   ============================================================================ */
+function getFilters() {
+  return {
+    dateFrom: document.getElementById('fDateFrom').value,
+    dateTo: document.getElementById('fDateTo').value,
+    region: document.getElementById('fRegion').value,
+    province: document.getElementById('fProvince').value,
+    amphoe: document.getElementById('fAmphoe').value,
+    tambon: document.getElementById('fTambon').value,
+    disaster: document.getElementById('fDisaster').value,
+    event: document.getElementById('fEvent').value,
+  };
+}
+
+function applyFilters() {
+  const f = getFilters();
+  const from = f.dateFrom ? new Date(f.dateFrom) : null;
+  const to = f.dateTo ? new Date(f.dateTo + 'T23:59:59') : null;
+
+  const filteredAreaRows = AREA_ROWS.filter(r => {
+    if (from && r.date && r.date < from) return false;
+    if (to && r.date && r.date > to) return false;
+    if (f.region && r.region !== f.region) return false;
+    if (f.province && r.province_code !== f.province) return false;
+    if (f.amphoe && r.amphoe_code !== f.amphoe) return false;
+    if (f.tambon && r.tambon_code !== f.tambon) return false;
+    if (f.disaster && r.disaster_id !== f.disaster) return false;
+    if (f.event && r.event_id !== f.event) return false;
+    return true;
+  });
+
+  const idSet = new Set(filteredAreaRows.map(r => r.alert_id));
+  let filteredAlerts = ALERTS.filter(a => idSet.has(a.alert_id));
+  // เผื่อ alert ไม่มีพื้นที่เลย (bridge ว่าง) ยังกรองตาม date/disaster/event ได้ตรงๆ
+  if (filteredAreaRows.length === 0 && !f.region && !f.province && !f.amphoe && !f.tambon) {
+    filteredAlerts = ALERTS.filter(a => {
+      if (from && a.date && a.date < from) return false;
+      if (to && a.date && a.date > to) return false;
+      if (f.disaster && a.disaster_id !== f.disaster) return false;
+      if (f.event && a.event_id !== f.event) return false;
+      return true;
+    });
+  }
+  return { areaRows: filteredAreaRows, alerts: filteredAlerts };
+}
+
+/* ============================================================================
+   4) RENDER ทุกส่วน
+   ============================================================================ */
+function renderAll(rebuildFilters) {
+  if (rebuildFilters) populateFilterOptions();
+  const { areaRows, alerts } = applyFilters();
+  renderKpi(alerts, areaRows);
+  renderTimeline(alerts);
+  renderDisasterChart(alerts);
+  renderMap(areaRows);
+  renderHotspots(areaRows);
+  renderHero(alerts);
+  tablePage = 1;
+  renderTable(alerts);
+  updateStatus();
+}
+
+function populateFilterOptions() {
+  fillSelect('fRegion', [...new Set(PROVINCES.map(p => p.region))].map(r => ({v:r,l:r})));
+  fillSelect('fProvince', PROVINCES.map(p => ({v:p.code,l:p.th})));
+  fillSelect('fDisaster', (RAW.dim_disaster||[]).map(d => ({v:d.disaster_id,l:d.disaster_name})));
+  fillSelect('fEvent', (RAW.dim_event||[]).map(e => ({v:e.event_id,l:(e.event_en||e.event_id)})));
+  updateAmphoeOptions(); updateTambonOptions();
+}
+
+function fillSelect(id, options) {
+  const el = document.getElementById(id);
+  const current = el.value;
+  el.innerHTML = '<option value="">ทั้งหมด</option>' + options.map(o => '<option value="'+o.v+'">'+escapeHtml(o.l)+'</option>').join('');
+  if ([...el.options].some(o => o.value === current)) el.value = current;
+}
+
+function updateAmphoeOptions() {
+  const pcode = document.getElementById('fProvince').value;
+  const list = pcode ? (RAW.dim_amphoe||[]).filter(a => a.province_code === pcode) : [];
+  fillSelect('fAmphoe', list.map(a => ({v:a.amphoe_code,l:a.amphoe_name_th})));
+}
+function updateTambonOptions() {
+  const acode = document.getElementById('fAmphoe').value;
+  const list = acode ? (RAW.dim_tambon||[]).filter(t => t.amphoe_code === acode) : [];
+  fillSelect('fTambon', list.map(t => ({v:t.tambon_code,l:t.tambon_name_th})));
+}
+
+function renderKpi(alerts, areaRows) {
+  document.getElementById('kpiTotal').textContent = alerts.length.toLocaleString('th-TH');
+  const bySender = groupCount(alerts, a => a.sender_name);
+  document.getElementById('kpiTotalSub').innerHTML = Object.entries(bySender)
+    .map(([k,v]) => '<b>'+k+'</b> '+v).join(' &nbsp;·&nbsp; ') || '–';
+
+  const byEvent = groupCount(alerts, a => a.event_en);
+  const topEvent = Object.entries(byEvent).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('kpiEventTop').textContent = topEvent ? topEvent[0] : '–';
+  document.getElementById('kpiEventSub').innerHTML = Object.entries(byEvent)
+    .sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v]) => k+': <b>'+v+'</b>').join(' &nbsp;·&nbsp; ') || '–';
+
+  const provinces = new Set(areaRows.map(r => r.province_code)).size;
+  document.getElementById('kpiProvinces').textContent = provinces;
+
+  const byDisaster = groupCount(alerts, a => a.disaster_name);
+  const topDisaster = Object.entries(byDisaster).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('kpiTopDisaster').textContent = topDisaster ? topDisaster[0] : '–';
+  document.getElementById('kpiTopDisasterSub').textContent = topDisaster ? topDisaster[1] + ' ครั้ง' : '–';
+}
+
+function groupCount(arr, keyFn) {
+  const out = {};
+  arr.forEach(x => { const k = keyFn(x) || 'ไม่ระบุ'; out[k] = (out[k]||0) + 1; });
+  return out;
+}
+
+function renderTimeline(alerts) {
+  const fmt = d => timelineGranularity === 'year'
+    ? String(d.getFullYear())
+    : d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  const counts = {};
+  alerts.forEach(a => { if (!a.date) return; const k = fmt(a.date); counts[k] = (counts[k]||0)+1; });
+  const labels = Object.keys(counts).sort();
+  const data = labels.map(l => counts[l]);
+
+  const ctx = document.getElementById('timelineChart');
+  if (timelineChart) timelineChart.destroy();
+  timelineChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label:'จำนวนการส่ง', data, borderColor:'#0E7C5A',
+      backgroundColor:'rgba(14,124,90,.10)', fill:true, tension:.3, pointRadius:3, pointBackgroundColor:'#0E7C5A' }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ y:{ beginAtZero:true, grid:{color:'#EEF1F1'} }, x:{ grid:{display:false} } } }
+  });
+}
+
+function renderDisasterChart(alerts) {
+  const counts = groupCount(alerts, a => a.disaster_name);
+  const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const ctx = document.getElementById('disasterChart');
+  if (disasterChart) disasterChart.destroy();
+  disasterChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]),
+      backgroundColor: entries.map((_,i)=>DISASTER_COLORS[i % DISASTER_COLORS.length]), borderRadius:4 }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ beginAtZero:true, grid:{color:'#EEF1F1'} }, y:{ grid:{display:false} } } }
+  });
+}
+
+let geoJsonCache = null;
+function renderMap(areaRows) {
+  if (!leafletMap) {
+    leafletMap = L.map('map', { scrollWheelZoom:false }).setView([13.0, 101.0], 5.4);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap · © CARTO', maxZoom: 18,
+    }).addTo(leafletMap);
+  }
+  const counts = {};
+  areaRows.forEach(r => { counts[r.province_code] = (counts[r.province_code]||0) + 1; });
+  const max = Math.max(1, ...Object.values(counts));
+
+  const draw = (geo) => {
+    if (geoLayer) leafletMap.removeLayer(geoLayer);
+    geoLayer = L.geoJSON(geo, {
+      style: (feat) => {
+        const prov = PROVINCE_BY_EN[feat.properties.name];
+        const c = prov ? (counts[prov.code] || 0) : 0;
+        const t = c / max;
+        return { fillColor: mixColor(t), weight:1, color:'#fff', fillOpacity: c ? 0.85 : 0.35 };
+      },
+      onEachFeature: (feat, layer) => {
+        const prov = PROVINCE_BY_EN[feat.properties.name];
+        const c = prov ? (counts[prov.code] || 0) : 0;
+        layer.bindTooltip((prov ? prov.th : feat.properties.name) + ': ' + c + ' ครั้ง');
+        layer.on('click', () => {
+          if (prov) { document.getElementById('fProvince').value = prov.code; onProvinceChange(); }
+        });
+      }
+    }).addTo(leafletMap);
+  };
+
+  if (geoJsonCache) { draw(geoJsonCache); return; }
+  fetch('https://raw.githubusercontent.com/apisit/thailand.json/master/thailand.json')
+    .then(r => r.json()).then(geo => { geoJsonCache = geo; draw(geo); })
+    .catch(() => { document.getElementById('map').innerHTML =
+      '<div style="padding:20px;color:var(--text-soft);font-size:12.5px;">โหลดขอบเขตแผนที่ไม่สำเร็จ (ต้องมีอินเทอร์เน็ตเชื่อมต่อ GitHub) — ดูสรุปพื้นที่ได้จากรายการด้านขวาแทน</div>'; });
+}
+
+function mixColor(t) {
+  const c1 = [234,243,239], c2 = [14,124,90];
+  const c = c1.map((v,i) => Math.round(v + (c2[i]-v)*t));
+  return 'rgb(' + c.join(',') + ')';
+}
+
+function renderHotspots(areaRows) {
+  const counts = {};
+  areaRows.forEach(r => {
+    const key = r.tambon_name ? (r.tambon_name+' / '+r.amphoe_name) : (r.amphoe_name || r.province_name);
+    counts[key] = (counts[key]||0)+1;
+  });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById('hotspotList').innerHTML = top.length ? top.map(([name,c],i) =>
+    '<li><span class="hotspot-rank">'+(i+1)+'</span><span class="hotspot-name">'+escapeHtml(name)+'</span><span class="hotspot-count">'+c+'</span></li>'
+  ).join('') : '<li style="color:var(--text-soft);">ไม่มีข้อมูลตามตัวกรองนี้</li>';
+}
+
+function renderHero(alerts) {
+  const latest = [...alerts].sort((a,b) => (b.date-a.date) || 0)[0];
+  if (!latest) {
+    document.getElementById('heroTitle').textContent = 'ไม่มีข้อความตามตัวกรองที่เลือก';
+    document.getElementById('heroMsg').textContent = '';
+    document.getElementById('heroTime').textContent = '';
+    document.getElementById('heroAreas').textContent = '';
+    document.getElementById('heroEvent').textContent = '';
+    return;
+  }
+  document.getElementById('heroTitle').textContent = latest.title || '(ไม่มีหัวเรื่อง)';
+  document.getElementById('heroMsg').textContent = latest.message_th || '';
+  document.getElementById('heroTime').textContent = '🕒 ' + formatDate(latest.date) + ' ' + (latest.time||'');
+  const areas = AREA_ROWS.filter(r => r.alert_id === latest.alert_id);
+  const areaNames = [...new Set(areas.map(a => a.province_name))].join(', ');
+  document.getElementById('heroAreas').textContent = '📍 ' + (areaNames || '-');
+  document.getElementById('heroEvent').textContent = '🔔 ' + latest.event_en;
+}
+
+function renderTable(alerts) {
+  const search = (document.getElementById('tableSearch').value || '').toLowerCase();
+  let rows = [...alerts].sort((a,b) => (b.date-a.date) || 0);
+  if (search) {
+    rows = rows.filter(a => {
+      const areas = AREA_ROWS.filter(r => r.alert_id === a.alert_id).map(r=>r.province_name).join(' ');
+      return (a.title+a.message_th+areas).toLowerCase().includes(search);
+    });
+  }
+  document.getElementById('tableCount').textContent = 'ทั้งหมด ' + rows.length.toLocaleString('th-TH') + ' รายการ';
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  tablePage = Math.min(tablePage, totalPages);
+  const pageRows = rows.slice((tablePage-1)*PAGE_SIZE, tablePage*PAGE_SIZE);
+
+  document.getElementById('tableBody').innerHTML = pageRows.map(a => {
+    const areas = AREA_ROWS.filter(r => r.alert_id === a.alert_id);
+    const provNames = [...new Set(areas.map(x=>x.province_name))].join(', ') || '-';
+    const areaCount = areas.length;
+    const shortMsg = (a.message_th||'').slice(0, 60);
+    const isLong = (a.message_th||'').length > 60;
+    return '<tr>'+
+      '<td>'+formatDate(a.date)+'<br><span style="color:var(--text-soft);">'+(a.time||'')+'</span></td>'+
+      '<td>'+escapeHtml(provNames)+'</td>'+
+      '<td><span class="badge badge-disaster">'+escapeHtml(a.disaster_name)+'</span></td>'+
+      '<td><span class="badge badge-event">'+escapeHtml(a.event_en)+'</span></td>'+
+      '<td>'+escapeHtml(a.title)+'</td>'+
+      '<td class="msg-cell"><span class="short">'+escapeHtml(shortMsg)+(isLong?'…':'')+'</span>'+
+        (isLong ? '<span class="full">'+escapeHtml(a.message_th.slice(60))+'</span><span class="toggle" onclick="this.parentElement.classList.toggle(\'expanded\');this.textContent=this.parentElement.classList.contains(\'expanded\')?\'ย่อ\':\'ดูเพิ่ม\'">ดูเพิ่ม</span>' : '')+
+      '</td>'+
+      '<td>'+areaCount+' พื้นที่</td>'+
+      '</tr>';
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-soft);padding:24px;">ไม่มีข้อมูลตามตัวกรองนี้</td></tr>';
+
+  document.getElementById('pagination').innerHTML = totalPages > 1 ? [
+    '<button class="btn" '+(tablePage<=1?'disabled':'')+' onclick="changePage(-1)">‹ ก่อนหน้า</button>',
+    '<span style="margin:0 8px;">หน้า '+tablePage+' / '+totalPages+'</span>',
+    '<button class="btn" '+(tablePage>=totalPages?'disabled':'')+' onclick="changePage(1)">ถัดไป ›</button>',
+  ].join('') : '';
+}
+function changePage(d) { tablePage += d; renderTable(applyFilters().alerts); }
+
+function updateStatus() {
+  const now = new Date().toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' });
+  document.getElementById('lastUpdated').textContent = 'อัปเดตล่าสุด ' + now;
+  document.getElementById('footerUpdated').textContent = 'อัปเดตล่าสุด: ' + now;
+}
+
+/* ============================================================================
+   5) EVENT WIRING
+   ============================================================================ */
+function onProvinceChange() {
+  updateAmphoeOptions(); document.getElementById('fAmphoe').value=''; document.getElementById('fTambon').value='';
+  updateTambonOptions(); renderAll(false);
+}
+function onAmphoeChange() {
+  updateTambonOptions(); document.getElementById('fTambon').value=''; renderAll(false);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  ['fDateFrom','fDateTo','fRegion','fDisaster','fEvent'].forEach(id =>
+    document.getElementById(id).addEventListener('change', () => renderAll(false)));
+  document.getElementById('fProvince').addEventListener('change', onProvinceChange);
+  document.getElementById('fAmphoe').addEventListener('change', onAmphoeChange);
+  document.getElementById('fTambon').addEventListener('change', () => renderAll(false));
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    ['fDateFrom','fDateTo','fRegion','fProvince','fAmphoe','fTambon','fDisaster','fEvent'].forEach(id => document.getElementById(id).value = '');
+    updateAmphoeOptions(); updateTambonOptions(); renderAll(false);
+  });
+  document.getElementById('tableSearch').addEventListener('input', () => { tablePage=1; renderTable(applyFilters().alerts); });
+  document.getElementById('refreshBtn').addEventListener('click', loadData);
+  document.getElementById('csvBtn').addEventListener('click', exportCsv);
+  document.getElementById('pngBtn').addEventListener('click', exportPng);
+  document.getElementById('timelineSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    document.querySelectorAll('#timelineSeg button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); timelineGranularity = btn.dataset.g;
+    renderTimeline(applyFilters().alerts);
+  });
+  loadData();
+  setInterval(loadData, CONFIG.REFRESH_INTERVAL_MS);
+});
+
+/* ============================================================================
+   6) EXPORT — CSV และภาพ 16:9
+   ============================================================================ */
+function exportCsv() {
+  const { alerts } = applyFilters();
+  const header = ['alert_id','วันที่','เวลา','ประเภทการแจ้งเตือน','ประเภทภัยพิบัติ','หน่วยงานผู้ส่ง','หัวเรื่อง','ข้อความ','จังหวัด','จำนวนพื้นที่','ระยะเวลาแสดงผล(ชม.)','จำนวนครั้งที่ส่ง'];
+  const rows = alerts.map(a => {
+    const areas = AREA_ROWS.filter(r => r.alert_id === a.alert_id);
+    const provNames = [...new Set(areas.map(x=>x.province_name))].join('; ');
+    return [a.alert_id, formatDate(a.date), a.time, a.event_en, a.disaster_name, a.sender_name,
+      a.title, a.message_th, provNames, areas.length, a.duration_hour, a.send_count];
+  });
+  const csv = [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'cbs_alert_export_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+function csvEscape(v) {
+  const s = (v === null || v === undefined) ? '' : String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+
+function exportPng() {
+  const el = document.getElementById('captureArea');
+  const btn = document.getElementById('pngBtn');
+  btn.textContent = 'กำลังสร้างภาพ...'; btn.disabled = true;
+  html2canvas(el, { backgroundColor: '#F2F4F5', scale: 2, useCORS: true }).then(canvas => {
+    // ครอปให้เป็นสัดส่วน 16:9 พอดี (ตัดจากด้านบน เก็บส่วนสำคัญไว้)
+    const targetRatio = 16/9;
+    let cw = canvas.width, ch = Math.round(cw / targetRatio);
+    if (ch > canvas.height) { ch = canvas.height; cw = Math.round(ch * targetRatio); }
+    const out = document.createElement('canvas');
+    out.width = cw; out.height = ch;
+    out.getContext('2d').drawImage(canvas, 0, 0, cw, ch, 0, 0, cw, ch);
+    out.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'cbs_dashboard_' + new Date().toISOString().slice(0,10) + '.png';
+      a.click(); URL.revokeObjectURL(url);
+      btn.textContent = '🖼 บันทึกภาพ (16:9)'; btn.disabled = false;
+    });
+  });
+}
+
+/* ============================================================================
+   ยูทิลิตี้
+   ============================================================================ */
+function formatDate(d) {
+  if (!d) return '-';
+  return d.toLocaleDateString('th-TH', { year:'numeric', month:'short', day:'numeric' });
+}
+function escapeHtml(s) {
+  return (s===null||s===undefined?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ============================================================================
+   ข้อมูลตัวอย่าง (ใช้เมื่อยังไม่ตั้งค่า CONFIG.API_URL) — สุ่มสร้างให้หน้าตาสมจริง
+   ทำเครื่องหมายชัดเจนว่าเป็น Demo ผ่านแบนเนอร์ด้านบน ไม่ใช่ข้อมูลจริงจาก DDPM/NDWC
+   ============================================================================ */
+function generateDemoData() {
+  const events = [
+    {event_id:'PRA', event_th:'ระดับชาติ', event_en:'Presidential Alert'},
+    {event_id:'EXA', event_th:'ขั้นรุนแรง', event_en:'Extreme Alert'},
+    {event_id:'ACI', event_th:'ให้ข้อมูล', event_en:'Informational Alert'},
+    {event_id:'ALL', event_th:'สิ้นสุดภัย', event_en:'All Clear'},
+  ];
+  const disasters = [
+    {disaster_id:'D-01', disaster_name:'แผ่นดินไหว'}, {disaster_id:'D-02', disaster_name:'สึนามิ'},
+    {disaster_id:'D-03', disaster_name:'วาตภัย'}, {disaster_id:'D-04', disaster_name:'อุทกภัย'},
+    {disaster_id:'D-05', disaster_name:'ดินโคลนถล่ม'}, {disaster_id:'D-06', disaster_name:'ภัยหนาว'},
+    {disaster_id:'D-07', disaster_name:'PM2.5'}, {disaster_id:'D-10', disaster_name:'อัคคีภัย'},
+  ];
+  const senders = [{sender_id:'S-01', sender_name:'กรมป้องกันและบรรเทาสาธารณภัย'}, {sender_id:'S-02', sender_name:'กรมอุตุนิยมวิทยา'}];
+  const messages = ['ระวังน้ำท่วมฉับพลันและน้ำป่าไหลหลาก ขอให้ประชาชนเคลื่อนย้ายทรัพย์สินขึ้นที่สูง',
+    'มีฝนตกหนักต่อเนื่อง ระวังดินโคลนถล่มในพื้นที่ลาดเชิงเขา', 'แจ้งเตือนสถานการณ์คลี่คลายแล้ว ประชาชนสามารถกลับเข้าพื้นที่ได้ตามปกติ',
+    'ระวังพายุลมแรง ต้นไม้หักโค่น ให้หลีกเลี่ยงพื้นที่โล่งแจ้ง'];
+
+  const fact_cb = [], bridge_alert_location = [], dim_message = [];
+  const provincePool = PROVINCES;
+  let seq = 1;
+  for (let i = 0; i < 180; i++) {
+    const d = new Date(2025, Math.floor(Math.random()*20), 1 + Math.floor(Math.random()*28));
+    const dateId = 'D-' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+    const ev = events[Math.floor(Math.random()*events.length)];
+    const ds = disasters[Math.floor(Math.random()*disasters.length)];
+    const sd = senders[Math.floor(Math.random()*senders.length)];
+    const alertId = 'CB-DEMO' + String(seq).padStart(4,'0');
+    const msgId = 'M-DEMO' + String(seq).padStart(4,'0');
+    fact_cb.push({ alert_id: alertId, date_id: dateId, time: String(Math.floor(Math.random()*24)).padStart(2,'0')+':'+String(Math.floor(Math.random()*60)).padStart(2,'0'),
+      sender_id: sd.sender_id, event_id: ev.event_id, message_id: msgId, disaster_id: ds.disaster_id,
+      title: ds.disaster_name + ' — แจ้งเตือนตัวอย่าง', duration_hour: [0.5,1,2,3][Math.floor(Math.random()*4)], send_count: 1 });
+    dim_message.push({ message_id: msgId, message_th: messages[Math.floor(Math.random()*messages.length)] });
+    const nAreas = 1 + Math.floor(Math.random()*3);
+    const used = new Set();
+    for (let k = 0; k < nAreas; k++) {
+      const p = provincePool[Math.floor(Math.random()*provincePool.length)];
+      if (used.has(p.code)) continue; used.add(p.code);
+      bridge_alert_location.push({ alert_id: alertId, level:'province', province_code:p.code, amphoe_code:'', tambon_code:'' });
+    }
+    seq++;
+  }
+  const dim_province = provincePool.map(p => ({ province_code:p.code, province_name_th:p.th, province_name_en:p.en, region:p.region }));
+  return { fact_cb, dim_message, bridge_alert_location, dim_province, dim_amphoe:[], dim_tambon:[], dim_event: events, dim_disaster: disasters, dim_sender: senders };
+}
+</script>
+</body>
+</html>
