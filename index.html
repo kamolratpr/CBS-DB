@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- ============================================================================
@@ -24,15 +25,18 @@
 :root{
   --bg:#F2F4F5; --surface:#FFFFFF; --border:#E3E7EA;
   --text:#1F2A2E; --text-soft:#657077;
-  --brand:#0E7C5A; --brand-soft:#E4F4EE;
+  --p1:#d16ba5; --p2:#c777b9; --p3:#ba83ca; --p4:#aa8fd8; --p5:#9a9ae1; --p6:#8aa7ec;
+  --p7:#79b3f4; --p8:#69bff8; --p9:#52cffe; --p10:#41dfff; --p11:#46eefa; --p12:#5ffbf1;
+  --brand-grad:linear-gradient(90deg,var(--p1),var(--p2),var(--p3),var(--p4),var(--p5),var(--p6),var(--p7),var(--p8),var(--p9),var(--p10),var(--p11),var(--p12));
+  --brand:#7b8fe0; --brand-soft:#EFF0FC;
   --alert:#D6483A; --alert-soft:#FBEAE8;
   --amber:#C9832B; --amber-soft:#FBF1E2;
-  --indigo:#3E5FA8;
+  --indigo:#79b3f4;
   --radius:10px;
   --shadow:0 1px 2px rgba(20,30,30,.04), 0 4px 14px rgba(20,30,30,.05);
 }
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:'Sarabun',sans-serif;font-size:14px;line-height:1.5;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Sarabun',sans-serif;font-size:16.5px;line-height:1.5;}
 h1,h2,h3{font-family:'Sarabun',sans-serif;margin:0;}
 button,select,input{font-family:'Sarabun',sans-serif;}
 a{color:var(--brand);}
@@ -41,46 +45,60 @@ a{color:var(--brand);}
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 22px;
   display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:50;}
 .topbar-left{display:flex;align-items:center;gap:12px;}
-.topbar-badge{width:38px;height:38px;border-radius:9px;background:var(--brand);color:#fff;display:flex;
-  align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;}
-.topbar-title{font-weight:700;font-size:17px;letter-spacing:.1px;}
-.topbar-sub{font-size:12px;color:var(--text-soft);}
+.topbar-badge{width:38px;height:38px;border-radius:9px;background:var(--brand-grad);color:#fff;display:flex;
+  align-items:center;justify-content:center;font-weight:800;font-size:17.5px;flex-shrink:0;}
+.topbar-title{font-weight:700;font-size:19.5px;letter-spacing:.1px;}
+.topbar-sub{font-size:14.5px;color:var(--text-soft);}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.status-pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-soft);
+.status-pill{display:flex;align-items:center;gap:6px;font-size:14.5px;color:var(--text-soft);
   background:var(--brand-soft);border-radius:20px;padding:5px 12px;}
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--brand);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 .btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;
-  padding:8px 13px;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  padding:8px 13px;font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
   transition:.15s;}
 .btn:hover{border-color:var(--brand);color:var(--brand);}
-.btn-brand{background:var(--brand);border-color:var(--brand);color:#fff;}
+.btn-brand{background:var(--brand-grad);border-color:transparent;color:#fff;}
 .btn-brand:hover{opacity:.9;color:#fff;}
 .demo-banner{display:none;background:var(--amber-soft);color:#8a5a12;border-bottom:1px solid #f0dcb0;
-  font-size:12.5px;padding:8px 22px;text-align:center;}
+  font-size:15px;padding:8px 22px;text-align:center;}
+.loading-overlay{position:fixed;inset:0;background:rgba(242,244,245,.94);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:300;gap:14px;}
+.loading-spinner{width:38px;height:38px;border-radius:50%;border:4px solid var(--border);
+  border-top-color:var(--p9);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:16.5px;font-weight:700;color:var(--text-soft);letter-spacing:.4px;}
+.error-banner{display:none;background:var(--alert-soft);color:#8a2e22;border-bottom:1px solid #f2c9c3;
+  font-size:15px;padding:9px 22px;text-align:center;align-items:center;justify-content:center;gap:10px;}
+.error-banner button{border:1px solid #e3aaa2;background:#fff;color:#8a2e22;border-radius:7px;
+  padding:5px 12px;font-size:13.5px;font-weight:600;cursor:pointer;}
 
 /* ---------- layout ---------- */
 .wrap{max-width:1400px;margin:0 auto;padding:18px 22px 40px;}
-.section-title{font-size:14px;font-weight:700;margin:26px 0 10px;display:flex;align-items:center;gap:8px;color:var(--text);}
-.section-title .idx{font-size:11px;font-weight:700;color:#fff;background:var(--brand);border-radius:5px;padding:1px 7px;}
+.section-title{font-size:16.5px;font-weight:700;margin:26px 0 10px;display:flex;align-items:center;gap:8px;color:var(--text);}
+.section-title .idx{font-size:13.5px;font-weight:700;color:#fff;background:var(--brand);border-radius:5px;padding:1px 7px;}
 
 /* ---------- filter bar ---------- */
 .filters{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;box-shadow:var(--shadow);}
 .f-group{display:flex;flex-direction:column;gap:4px;min-width:140px;}
-.f-group label{font-size:11px;color:var(--text-soft);font-weight:600;}
+.f-group label{font-size:13.5px;color:var(--text-soft);font-weight:600;}
 .f-group select,.f-group input[type=date]{padding:7px 9px;border:1px solid var(--border);border-radius:7px;
-  font-size:13px;background:#fff;color:var(--text);}
+  font-size:15.5px;background:#fff;color:var(--text);}
 .f-clear{margin-left:auto;}
 
 /* ---------- KPI ---------- */
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
 .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  padding:16px 18px;box-shadow:var(--shadow);}
-.kpi-label{font-size:12px;color:var(--text-soft);font-weight:600;}
-.kpi-value{font-size:30px;font-weight:800;margin-top:4px;color:var(--text);}
-.kpi-sub{font-size:11.5px;color:var(--text-soft);margin-top:6px;line-height:1.6;}
+  padding:11px 14px;box-shadow:var(--shadow);}
+.kpi-label{font-size:12.5px;color:var(--text-soft);font-weight:600;}
+.kpi-value{font-size:24px;font-weight:800;margin-top:2px;color:var(--text);}
+.kpi-value .unit{font-size:13px;font-weight:600;color:var(--text-soft);margin-left:3px;}
+.kpi-sub{font-size:12px;color:var(--text-soft);margin-top:4px;line-height:1.7;}
 .kpi-sub b{color:var(--text);}
+.kpi-chip{display:inline-flex;align-items:baseline;gap:3px;background:var(--brand-soft);color:var(--brand);
+  border-radius:6px;padding:2px 7px;margin:2px 4px 0 0;font-weight:700;font-size:12px;}
+.kpi-chip .n{color:var(--text);font-weight:700;}
 .kpi-accent-alert .kpi-value{color:var(--alert);}
 .kpi-accent-amber .kpi-value{color:var(--amber);}
 
@@ -89,9 +107,9 @@ a{color:var(--brand);}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   padding:16px 18px;box-shadow:var(--shadow);}
 .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.card-head h3{font-size:13.5px;font-weight:700;}
+.card-head h3{font-size:16px;font-weight:700;}
 .seg{display:flex;background:var(--bg);border-radius:7px;padding:2px;gap:2px;}
-.seg button{border:none;background:transparent;font-size:11.5px;padding:5px 10px;border-radius:6px;
+.seg button{border:none;background:transparent;font-size:14px;padding:5px 10px;border-radius:6px;
   cursor:pointer;color:var(--text-soft);font-weight:600;}
 .seg button.active{background:#fff;color:var(--brand);box-shadow:0 1px 2px rgba(0,0,0,.08);}
 .chart-box{position:relative;height:260px;}
@@ -99,55 +117,56 @@ a{color:var(--brand);}
 /* ---------- map ---------- */
 .map-row{display:grid;grid-template-columns:2.3fr 1fr;gap:14px;}
 #map{height:420px;border-radius:8px;overflow:hidden;background:#eef1f2;}
-.legend-box{font-size:11.5px;color:var(--text-soft);margin-top:8px;display:flex;align-items:center;gap:8px;}
-.legend-scale{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#EAF3EF,var(--brand));}
+.legend-box{font-size:14px;color:var(--text-soft);margin-top:8px;display:flex;align-items:center;gap:8px;}
+.hint{font-size:12px;color:var(--text-soft);}
+.legend-scale{flex:1;height:8px;border-radius:4px;background:var(--brand-grad);}
 .hotspot-list{list-style:none;margin:0;padding:0;}
 .hotspot-list li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;
-  border-bottom:1px solid var(--border);font-size:12.5px;}
+  border-bottom:1px solid var(--border);font-size:15px;}
 .hotspot-list li:last-child{border-bottom:none;}
 .hotspot-rank{width:20px;height:20px;border-radius:5px;background:var(--brand-soft);color:var(--brand);
-  font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;margin-right:8px;}
+  font-weight:700;font-size:13.5px;display:flex;align-items:center;justify-content:center;margin-right:8px;}
 .hotspot-name{flex:1;color:var(--text);}
 .hotspot-count{font-weight:700;color:var(--text);}
 
 /* ---------- latest alert hero ---------- */
-.hero-alert{background:linear-gradient(135deg,#12332B,#0E7C5A);color:#fff;border-radius:var(--radius);
+.hero-alert{background:linear-gradient(135deg,var(--p4),var(--p7),var(--p10));color:#fff;border-radius:var(--radius);
   padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
 .hero-alert::before{content:'';position:absolute;right:-40px;top:-40px;width:160px;height:160px;
   border-radius:50%;background:rgba(255,255,255,.06);}
-.hero-top{display:flex;align-items:center;gap:8px;font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;
+.hero-top{display:flex;align-items:center;gap:8px;font-size:14px;text-transform:uppercase;letter-spacing:.6px;
   opacity:.85;margin-bottom:8px;}
 .hero-live-dot{width:7px;height:7px;border-radius:50%;background:#6BE3B0;animation:pulse 1.4s infinite;}
-.hero-title{font-size:17px;font-weight:700;margin-bottom:6px;}
-.hero-msg{font-size:13px;opacity:.92;max-width:820px;}
-.hero-meta{display:flex;gap:16px;margin-top:12px;font-size:11.5px;opacity:.85;flex-wrap:wrap;}
+.hero-title{font-size:19.5px;font-weight:700;margin-bottom:6px;}
+.hero-msg{font-size:15.5px;opacity:.92;max-width:820px;}
+.hero-meta{display:flex;gap:16px;margin-top:12px;font-size:14px;opacity:.85;flex-wrap:wrap;}
 
 /* ---------- table ---------- */
 .table-wrap{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:12.5px;}
-thead th{text-align:left;font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;
+table{width:100%;border-collapse:collapse;font-size:15px;}
+thead th{text-align:left;font-size:13.5px;color:var(--text-soft);font-weight:700;text-transform:uppercase;
   letter-spacing:.3px;padding:9px 10px;border-bottom:2px solid var(--border);white-space:nowrap;}
 tbody td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text);}
 tbody tr:hover{background:#FAFBFB;}
-.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:13px;font-weight:700;}
 .badge-event{background:var(--indigo);color:#fff;}
 .badge-disaster{background:var(--amber-soft);color:#8a5a12;}
 .msg-cell{max-width:340px;color:var(--text-soft);}
 .msg-cell .full{display:none;}
 .msg-cell.expanded .full{display:inline;}
 .msg-cell .short{cursor:pointer;}
-.msg-cell .toggle{color:var(--brand);cursor:pointer;font-size:11px;font-weight:600;margin-left:4px;}
-.table-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--text-soft);}
-.search-box{padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:12.5px;width:220px;}
+.msg-cell .toggle{color:var(--brand);cursor:pointer;font-size:13.5px;font-weight:600;margin-left:4px;}
+.table-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:14.5px;color:var(--text-soft);}
+.search-box{padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:15px;width:220px;}
 
 /* ---------- footer ---------- */
 .footer{margin-top:34px;background:var(--surface);border-top:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;
   padding:24px 26px;}
 .footer-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:24px;}
-.footer h4{font-size:13px;margin-bottom:8px;color:var(--text);}
-.footer p, .footer a{font-size:12.5px;color:var(--text-soft);line-height:1.9;text-decoration:none;}
+.footer h4{font-size:15.5px;margin-bottom:8px;color:var(--text);}
+.footer p, .footer a{font-size:15px;color:var(--text-soft);line-height:1.9;text-decoration:none;}
 .footer a:hover{color:var(--brand);}
-.footer-bottom{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text-soft);
+.footer-bottom{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:14px;color:var(--text-soft);
   display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 
 @media (max-width:980px){
@@ -158,8 +177,13 @@ tbody tr:hover{background:#FAFBFB;}
 </head>
 <body>
 
-<div class="demo-banner" id="demoBanner">
-  ⚠ กำลังแสดง <b>ข้อมูลตัวอย่าง (Demo)</b> — ยังไม่ได้เชื่อมต่อฐานข้อมูลจริง ดูวิธีเชื่อมต่อได้ในคอมเมนต์ต้นไฟล์ (CONFIG.API_URL)
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">กำลังโหลด....</div>
+</div>
+<div class="error-banner" id="errorBanner">
+  <span>⚠ เชื่อมต่อฐานข้อมูลไม่สำเร็จ</span>
+  <button id="retryBtn">ลองใหม่</button>
 </div>
 
 <div class="topbar">
@@ -197,13 +221,11 @@ tbody tr:hover{background:#FAFBFB;}
   <div class="kpi-grid">
     <div class="kpi-card">
       <div class="kpi-label">การส่งทั้งหมด</div>
-      <div class="kpi-value" id="kpiTotal">–</div>
-      <div class="kpi-sub" id="kpiTotalSub">ตามช่วงเวลา/ตัวกรองที่เลือก</div>
+      <div class="kpi-value" id="kpiTotal">– <span class="unit">ครั้ง</span></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">แยกตามประเภทการแจ้งเตือน</div>
-      <div class="kpi-value" id="kpiEventTop">–</div>
-      <div class="kpi-sub" id="kpiEventSub">–</div>
+      <div class="kpi-sub" id="kpiEventSub" style="margin-top:6px;">–</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">จังหวัดที่ได้รับข้อความ</div>
@@ -212,8 +234,7 @@ tbody tr:hover{background:#FAFBFB;}
     </div>
     <div class="kpi-card kpi-accent-alert">
       <div class="kpi-label">ประเภทภัยที่ส่งมากที่สุด</div>
-      <div class="kpi-value" id="kpiTopDisaster" style="font-size:19px;">–</div>
-      <div class="kpi-sub" id="kpiTopDisasterSub">–</div>
+      <div class="kpi-value" id="kpiTopDisaster" style="font-size:17px;">–</div>
     </div>
   </div>
 
@@ -221,11 +242,7 @@ tbody tr:hover{background:#FAFBFB;}
   <div class="chart-row">
     <div class="card">
       <div class="card-head">
-        <h3>ไทม์ไลน์การส่ง CBS</h3>
-        <div class="seg" id="timelineSeg">
-          <button data-g="month" class="active">รายเดือน</button>
-          <button data-g="year">รายปี</button>
-        </div>
+        <h3>ไทม์ไลน์การส่ง CBS รายเดือน (ซ้อนเทียบปี)</h3>
       </div>
       <div class="chart-box"><canvas id="timelineChart"></canvas></div>
     </div>
@@ -246,7 +263,8 @@ tbody tr:hover{background:#FAFBFB;}
       <div class="legend-box"><span>น้อย</span><div class="legend-scale"></div><span>มาก</span></div>
     </div>
     <div class="card">
-      <div class="card-head"><h3>พื้นที่ที่ได้รับแจ้งเตือนบ่อยที่สุด (Top 8)</h3></div>
+      <div class="card-head"><h3>พื้นที่ที่ได้รับแจ้งเตือนบ่อยที่สุด (Top 5)</h3></div>
+      <div class="hint" id="hotspotLevelHint" style="margin-bottom:6px;">แสดงระดับจังหวัด (ภาพรวมทั้งประเทศ)</div>
       <ul class="hotspot-list" id="hotspotList"></ul>
     </div>
   </div>
@@ -269,8 +287,7 @@ tbody tr:hover{background:#FAFBFB;}
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>วันที่ / เวลา</th><th>จังหวัด</th><th>ประเภทภัย</th><th>ประเภทเตือน</th>
-          <th>หัวเรื่อง</th><th>ข้อความ</th><th>พื้นที่</th>
+          <th>วันที่ / เวลา</th><th>จังหวัด</th><th>ประเภทการแจ้งเตือน</th><th>ข้อความแจ้งเตือน</th>
         </tr></thead>
         <tbody id="tableBody"></tbody>
       </table>
@@ -293,8 +310,8 @@ tbody tr:hover{background:#FAFBFB;}
     <div>
       <h4>ช่องทางติดต่อ</h4>
       <p>สายด่วนนิรภัย 1784 (24 ชั่วโมง)<br>
-      โทรสาร: 0-2243-0674<br>
-      อีเมล: contact@disaster.go.th</p>
+      โทรศัพท์: 0-2243-3754<br>
+      อีเมล:academic.ndwc@gmail.com</p>
     </div>
     <div>
       <h4>ลิงก์ที่เกี่ยวข้อง</h4>
@@ -303,7 +320,7 @@ tbody tr:hover{background:#FAFBFB;}
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© ศูนย์เตือนภัยพิบัติแห่งชาติ · ข้อมูลอัปเดตอัตโนมัติจาก Google Sheets</span>
+    <span>© ศูนย์เตือนภัยพิบัติแห่งชาติ</span>
     <span id="footerUpdated">–</span>
   </div>
 </div>
@@ -326,57 +343,89 @@ const PROVINCES = [{"code":"10","th":"กรุงเทพมหานคร","
 const PROVINCE_BY_CODE = Object.fromEntries(PROVINCES.map(p => [p.code, p]));
 const PROVINCE_BY_EN = Object.fromEntries(PROVINCES.map(p => [p.en, p]));
 
-const DISASTER_COLORS = ['#0E7C5A','#C9832B','#3E5FA8','#D6483A','#7A5FB8','#2FA0A6',
-  '#B8862E','#5B7DBB','#C15C7A','#4D8F6B','#9C6B3E','#6F7A8C','#B45252','#3F8A8F'];
+const DISASTER_COLORS = ['#d16ba5','#c777b9','#ba83ca','#aa8fd8','#9a9ae1','#8aa7ec',
+  '#79b3f4','#69bff8','#52cffe','#41dfff','#46eefa','#5ffbf1'];
 
 /* ============================================================================
    STATE
    ============================================================================ */
-let RAW = null;           // ผลลัพธ์ดิบจาก API (แต่ละชีทเป็น array)
+let RAW = null;           // ผลลัพธ์ดิบจาก API ส่วน "ข้อมูลจริง" (fact_cb/dim_message/bridge/...)
+let GEO = null;           // dim_amphoe + dim_tambon — ตารางอ้างอิงคงที่ ดึงครั้งเดียวแล้ว cache ไว้ (ไม่ดึงซ้ำทุกรอบ refresh เพื่อความไว)
 let ALERTS = [];          // 1 แถว = 1 alert (join ครบทุก dim แล้ว)
 let AREA_ROWS = [];       // 1 แถว = 1 พื้นที่ต่อ alert (สำหรับแผนที่/ตัวกรองพื้นที่)
 let timelineChart, disasterChart, leafletMap, geoLayer;
-let timelineGranularity = 'month';
 let tablePage = 1;
+let hasLoadedOnce = false;
 const PAGE_SIZE = 12;
 
 /* ============================================================================
    1) โหลดข้อมูล — JSONP (ไม่ใช้ fetch ธรรมดา เพราะ GitHub Pages กับ Apps Script
       คนละ origin กัน CORS จะบล็อก fetch/XHR ปกติ — ต้องใช้ JSONP callback)
-   ============================================================================ */
-function loadData() {
-  if (!CONFIG.API_URL) { useDemoData(); return; }
-  document.getElementById('demoBanner').style.display = 'none';
-  const cbName = 'cbsData_' + Date.now();
-  const script = document.createElement('script');
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    script.remove();
-    delete window[cbName];
-    console.warn('CBS Dashboard: ดึงข้อมูลจริงไม่สำเร็จภายในเวลาที่กำหนด ใช้ข้อมูลตัวอย่างแทน');
-    useDemoData();
-  }, CONFIG.JSONP_TIMEOUT_MS);
 
-  window[cbName] = (data) => {
-    if (timedOut) return;
-    clearTimeout(timer);
-    script.remove();
-    delete window[cbName];
-    RAW = data;
-    buildModel();
-    renderAll(true);
-  };
-  script.src = CONFIG.API_URL + (CONFIG.API_URL.includes('?') ? '&' : '?') + 'callback=' + cbName;
-  script.onerror = () => { if (!timedOut) { clearTimeout(timer); useDemoData(); } };
-  document.body.appendChild(script);
+      เพื่อความไว: ตาราง dim_amphoe/dim_tambon (~8,300 แถว) แทบไม่เปลี่ยนเลย จึงดึงมา
+      "ครั้งเดียว" ตอนโหลดหน้าครั้งแรก แล้ว cache ไว้ใน GEO — รอบ auto-refresh ถัดไป
+      ดึงแค่ตารางที่เปลี่ยนบ่อย (fact_cb/dim_message/bridge_alert_location/...) เท่านั้น
+      ทำให้ payload ที่ดึงซ้ำทุก 5 นาทีเล็กลงมาก
+   ============================================================================ */
+function jsonpFetch(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cbsCb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
+    const script = document.createElement('script');
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true; script.remove(); delete window[cbName];
+      reject(new Error('timeout'));
+    }, timeoutMs);
+    window[cbName] = (data) => {
+      if (timedOut) return;
+      clearTimeout(timer); script.remove(); delete window[cbName];
+      resolve(data);
+    };
+    script.onerror = () => { if (!timedOut) { clearTimeout(timer); reject(new Error('network')); } };
+    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
+    document.body.appendChild(script);
+  });
 }
 
-function useDemoData() {
-  document.getElementById('demoBanner').style.display = 'block';
-  RAW = generateDemoData();
-  buildModel();
-  renderAll(true);
+function loadData() {
+  if (!CONFIG.API_URL) {
+    showLoading(false);
+    showError('ยังไม่ได้ตั้งค่า CONFIG.API_URL ในไฟล์นี้ กรุณาใส่ URL ของ Web App ก่อนใช้งาน');
+    return;
+  }
+  if (!hasLoadedOnce) showLoading(true);
+  hideError();
+
+  const needGeo = !GEO;
+  const dataUrl = CONFIG.API_URL + '?type=data';
+  const geoUrl = CONFIG.API_URL + '?type=geo';
+
+  const dataPromise = jsonpFetch(dataUrl, CONFIG.JSONP_TIMEOUT_MS);
+  const geoPromise = needGeo ? jsonpFetch(geoUrl, CONFIG.JSONP_TIMEOUT_MS) : Promise.resolve(GEO);
+
+  Promise.all([dataPromise, geoPromise]).then(([data, geo]) => {
+    RAW = data;
+    GEO = geo;
+    hasLoadedOnce = true;
+    showLoading(false);
+    buildModel();
+    renderAll(true);
+  }).catch(() => {
+    showLoading(false);
+    showError('เชื่อมต่อฐานข้อมูลไม่สำเร็จ (หมดเวลา หรือ URL/สิทธิ์การ Deploy ไม่ถูกต้อง)');
+  });
+}
+
+function showLoading(on) {
+  document.getElementById('loadingOverlay').style.display = on ? 'flex' : 'none';
+}
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  el.querySelector('span').textContent = '⚠ ' + msg;
+  el.style.display = 'flex';
+}
+function hideError() {
+  document.getElementById('errorBanner').style.display = 'none';
 }
 
 /* ============================================================================
@@ -406,8 +455,8 @@ function buildModel() {
   });
 
   const provIdx = idx(RAW.dim_province, 'province_code');
-  const ampIdx = idx(RAW.dim_amphoe, 'amphoe_code');
-  const tamIdx = idx(RAW.dim_tambon, 'tambon_code');
+  const ampIdx = idx(GEO.dim_amphoe, 'amphoe_code');
+  const tamIdx = idx(GEO.dim_tambon, 'tambon_code');
   const alertIdx = Object.fromEntries(ALERTS.map(a => [a.alert_id, a]));
 
   AREA_ROWS = (RAW.bridge_alert_location || []).map(b => {
@@ -513,26 +562,22 @@ function fillSelect(id, options) {
 
 function updateAmphoeOptions() {
   const pcode = document.getElementById('fProvince').value;
-  const list = pcode ? (RAW.dim_amphoe||[]).filter(a => a.province_code === pcode) : [];
+  const list = pcode ? (GEO.dim_amphoe||[]).filter(a => a.province_code === pcode) : [];
   fillSelect('fAmphoe', list.map(a => ({v:a.amphoe_code,l:a.amphoe_name_th})));
 }
 function updateTambonOptions() {
   const acode = document.getElementById('fAmphoe').value;
-  const list = acode ? (RAW.dim_tambon||[]).filter(t => t.amphoe_code === acode) : [];
+  const list = acode ? (GEO.dim_tambon||[]).filter(t => t.amphoe_code === acode) : [];
   fillSelect('fTambon', list.map(t => ({v:t.tambon_code,l:t.tambon_name_th})));
 }
 
 function renderKpi(alerts, areaRows) {
-  document.getElementById('kpiTotal').textContent = alerts.length.toLocaleString('th-TH');
-  const bySender = groupCount(alerts, a => a.sender_name);
-  document.getElementById('kpiTotalSub').innerHTML = Object.entries(bySender)
-    .map(([k,v]) => '<b>'+k+'</b> '+v).join(' &nbsp;·&nbsp; ') || '–';
+  document.getElementById('kpiTotal').innerHTML = alerts.length.toLocaleString('th-TH') + ' <span class="unit">ครั้ง</span>';
 
-  const byEvent = groupCount(alerts, a => a.event_en);
-  const topEvent = Object.entries(byEvent).sort((a,b)=>b[1]-a[1])[0];
-  document.getElementById('kpiEventTop').textContent = topEvent ? topEvent[0] : '–';
+  const byEvent = groupCount(alerts, a => a.event_id);
   document.getElementById('kpiEventSub').innerHTML = Object.entries(byEvent)
-    .sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v]) => k+': <b>'+v+'</b>').join(' &nbsp;·&nbsp; ') || '–';
+    .sort((a,b)=>b[1]-a[1])
+    .map(([k,v]) => '<span class="kpi-chip">'+k+' <span class="n">'+v+'</span></span>').join('') || '–';
 
   const provinces = new Set(areaRows.map(r => r.province_code)).size;
   document.getElementById('kpiProvinces').textContent = provinces;
@@ -540,7 +585,6 @@ function renderKpi(alerts, areaRows) {
   const byDisaster = groupCount(alerts, a => a.disaster_name);
   const topDisaster = Object.entries(byDisaster).sort((a,b)=>b[1]-a[1])[0];
   document.getElementById('kpiTopDisaster').textContent = topDisaster ? topDisaster[0] : '–';
-  document.getElementById('kpiTopDisasterSub').textContent = topDisaster ? topDisaster[1] + ' ครั้ง' : '–';
 }
 
 function groupCount(arr, keyFn) {
@@ -549,24 +593,42 @@ function groupCount(arr, keyFn) {
   return out;
 }
 
+const THAI_MONTH_ABBR = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const RIBBON_COLORS = ['#9a9ae1','#41dfff','#d16ba5','#52cffe','#ba83ca','#5ffbf1'];
+
 function renderTimeline(alerts) {
-  const fmt = d => timelineGranularity === 'year'
-    ? String(d.getFullYear())
-    : d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-  const counts = {};
-  alerts.forEach(a => { if (!a.date) return; const k = fmt(a.date); counts[k] = (counts[k]||0)+1; });
-  const labels = Object.keys(counts).sort();
-  const data = labels.map(l => counts[l]);
+  // จัดกลุ่มตาม (ปี พ.ศ., เดือน) — เรียงปีจากเก่าไปใหม่ เพื่อให้ปีเก่าซ้อนอยู่ด้านล่าง ปีใหม่ซ้อนทับด้านบน
+  const byYear = {};
+  alerts.forEach(a => {
+    if (!a.date) return;
+    const beYear = a.date.getFullYear() + 543;
+    const m = a.date.getMonth();
+    if (!byYear[beYear]) byYear[beYear] = Array(12).fill(0);
+    byYear[beYear][m]++;
+  });
+  const years = Object.keys(byYear).map(Number).sort((a,b) => a - b);
+
+  const datasets = years.map((y, i) => ({
+    label: String(y),
+    data: byYear[y],
+    borderColor: RIBBON_COLORS[i % RIBBON_COLORS.length],
+    backgroundColor: RIBBON_COLORS[i % RIBBON_COLORS.length] + '55',
+    fill: true, tension: .35, pointRadius: 2,
+    pointBackgroundColor: RIBBON_COLORS[i % RIBBON_COLORS.length],
+  }));
 
   const ctx = document.getElementById('timelineChart');
   if (timelineChart) timelineChart.destroy();
   timelineChart = new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{ label:'จำนวนการส่ง', data, borderColor:'#0E7C5A',
-      backgroundColor:'rgba(14,124,90,.10)', fill:true, tension:.3, pointRadius:3, pointBackgroundColor:'#0E7C5A' }] },
+    data: { labels: THAI_MONTH_ABBR, datasets },
     options: { responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false} },
-      scales:{ y:{ beginAtZero:true, grid:{color:'#EEF1F1'} }, x:{ grid:{display:false} } } }
+      plugins:{ legend:{ display: years.length > 1, position:'top', align:'end',
+        labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'circle' } } },
+      scales:{
+        y:{ beginAtZero:true, stacked:true, grid:{color:'#EEF1F1'} },
+        x:{ stacked:true, grid:{display:false} },
+      } }
   });
 }
 
@@ -577,10 +639,12 @@ function renderDisasterChart(alerts) {
   if (disasterChart) disasterChart.destroy();
   disasterChart = new Chart(ctx, {
     type: 'bar',
+    plugins: window.ChartDataLabels ? [window.ChartDataLabels] : [],
     data: { labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]),
       backgroundColor: entries.map((_,i)=>DISASTER_COLORS[i % DISASTER_COLORS.length]), borderRadius:4 }] },
     options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false} },
+      plugins:{ legend:{display:false},
+        datalabels:{ anchor:'end', align:'right', color:'#3a3f45', font:{weight:700, size:12.5}, formatter:(v)=>v } },
       scales:{ x:{ beginAtZero:true, grid:{color:'#EEF1F1'} }, y:{ grid:{display:false} } } }
   });
 }
@@ -625,18 +689,32 @@ function renderMap(areaRows) {
 }
 
 function mixColor(t) {
-  const c1 = [234,243,239], c2 = [14,124,90];
-  const c = c1.map((v,i) => Math.round(v + (c2[i]-v)*t));
+  const stops = [[242,240,250],[209,107,165],[199,119,185],[186,131,202],[170,143,216],[154,154,225],
+    [138,167,236],[121,179,244],[105,191,248],[82,207,254],[65,223,255],[70,238,250],[95,251,241]];
+  const seg = Math.min(stops.length - 2, Math.floor(t * (stops.length - 1)));
+  const localT = t * (stops.length - 1) - seg;
+  const c = stops[seg].map((v,i) => Math.round(v + (stops[seg+1][i]-v) * localT));
   return 'rgb(' + c.join(',') + ')';
 }
 
 function renderHotspots(areaRows) {
+  const f = getFilters();
+  let level, keyFn, hint;
+  if (f.amphoe) {
+    level = 'tambon'; hint = 'แสดงระดับตำบล (กรองอยู่ที่ระดับอำเภอ)';
+    keyFn = r => r.tambon_name || '(ไม่ระบุตำบล)';
+  } else if (f.province) {
+    level = 'amphoe'; hint = 'แสดงระดับอำเภอ (กรองอยู่ที่ระดับจังหวัด)';
+    keyFn = r => r.amphoe_name || '(ไม่ระบุอำเภอ)';
+  } else {
+    level = 'province'; hint = 'แสดงระดับจังหวัด (ภาพรวมทั้งประเทศ)';
+    keyFn = r => r.province_name || '(ไม่ระบุจังหวัด)';
+  }
+  document.getElementById('hotspotLevelHint').textContent = hint;
+
   const counts = {};
-  areaRows.forEach(r => {
-    const key = r.tambon_name ? (r.tambon_name+' / '+r.amphoe_name) : (r.amphoe_name || r.province_name);
-    counts[key] = (counts[key]||0)+1;
-  });
-  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  areaRows.forEach(r => { const k = keyFn(r); counts[k] = (counts[k]||0)+1; });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
   document.getElementById('hotspotList').innerHTML = top.length ? top.map(([name,c],i) =>
     '<li><span class="hotspot-rank">'+(i+1)+'</span><span class="hotspot-name">'+escapeHtml(name)+'</span><span class="hotspot-count">'+c+'</span></li>'
   ).join('') : '<li style="color:var(--text-soft);">ไม่มีข้อมูลตามตัวกรองนี้</li>';
@@ -663,6 +741,7 @@ function renderHero(alerts) {
 
 function renderTable(alerts) {
   const search = (document.getElementById('tableSearch').value || '').toLowerCase();
+  // เรียงจากใหม่ไปเก่าเสมอ ไม่มีตัวเลือกสลับลำดับ
   let rows = [...alerts].sort((a,b) => (b.date-a.date) || 0);
   if (search) {
     rows = rows.filter(a => {
@@ -679,21 +758,17 @@ function renderTable(alerts) {
   document.getElementById('tableBody').innerHTML = pageRows.map(a => {
     const areas = AREA_ROWS.filter(r => r.alert_id === a.alert_id);
     const provNames = [...new Set(areas.map(x=>x.province_name))].join(', ') || '-';
-    const areaCount = areas.length;
     const shortMsg = (a.message_th||'').slice(0, 60);
     const isLong = (a.message_th||'').length > 60;
     return '<tr>'+
       '<td>'+formatDate(a.date)+'<br><span style="color:var(--text-soft);">'+(a.time||'')+'</span></td>'+
       '<td>'+escapeHtml(provNames)+'</td>'+
-      '<td><span class="badge badge-disaster">'+escapeHtml(a.disaster_name)+'</span></td>'+
-      '<td><span class="badge badge-event">'+escapeHtml(a.event_en)+'</span></td>'+
-      '<td>'+escapeHtml(a.title)+'</td>'+
+      '<td><span class="badge badge-event">'+escapeHtml(a.event_id)+'</span></td>'+
       '<td class="msg-cell"><span class="short">'+escapeHtml(shortMsg)+(isLong?'…':'')+'</span>'+
         (isLong ? '<span class="full">'+escapeHtml(a.message_th.slice(60))+'</span><span class="toggle" onclick="this.parentElement.classList.toggle(\'expanded\');this.textContent=this.parentElement.classList.contains(\'expanded\')?\'ย่อ\':\'ดูเพิ่ม\'">ดูเพิ่ม</span>' : '')+
       '</td>'+
-      '<td>'+areaCount+' พื้นที่</td>'+
       '</tr>';
-  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-soft);padding:24px;">ไม่มีข้อมูลตามตัวกรองนี้</td></tr>';
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-soft);padding:24px;">ไม่มีข้อมูลตามตัวกรองนี้</td></tr>';
 
   document.getElementById('pagination').innerHTML = totalPages > 1 ? [
     '<button class="btn" '+(tablePage<=1?'disabled':'')+' onclick="changePage(-1)">‹ ก่อนหน้า</button>',
@@ -731,14 +806,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('tableSearch').addEventListener('input', () => { tablePage=1; renderTable(applyFilters().alerts); });
   document.getElementById('refreshBtn').addEventListener('click', loadData);
+  document.getElementById('retryBtn').addEventListener('click', loadData);
   document.getElementById('csvBtn').addEventListener('click', exportCsv);
   document.getElementById('pngBtn').addEventListener('click', exportPng);
-  document.getElementById('timelineSeg').addEventListener('click', (e) => {
-    const btn = e.target.closest('button'); if (!btn) return;
-    document.querySelectorAll('#timelineSeg button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active'); timelineGranularity = btn.dataset.g;
-    renderTimeline(applyFilters().alerts);
-  });
   loadData();
   setInterval(loadData, CONFIG.REFRESH_INTERVAL_MS);
 });
@@ -798,56 +868,6 @@ function formatDate(d) {
 }
 function escapeHtml(s) {
   return (s===null||s===undefined?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-/* ============================================================================
-   ข้อมูลตัวอย่าง (ใช้เมื่อยังไม่ตั้งค่า CONFIG.API_URL) — สุ่มสร้างให้หน้าตาสมจริง
-   ทำเครื่องหมายชัดเจนว่าเป็น Demo ผ่านแบนเนอร์ด้านบน ไม่ใช่ข้อมูลจริงจาก DDPM/NDWC
-   ============================================================================ */
-function generateDemoData() {
-  const events = [
-    {event_id:'PRA', event_th:'ระดับชาติ', event_en:'Presidential Alert'},
-    {event_id:'EXA', event_th:'ขั้นรุนแรง', event_en:'Extreme Alert'},
-    {event_id:'ACI', event_th:'ให้ข้อมูล', event_en:'Informational Alert'},
-    {event_id:'ALL', event_th:'สิ้นสุดภัย', event_en:'All Clear'},
-  ];
-  const disasters = [
-    {disaster_id:'D-01', disaster_name:'แผ่นดินไหว'}, {disaster_id:'D-02', disaster_name:'สึนามิ'},
-    {disaster_id:'D-03', disaster_name:'วาตภัย'}, {disaster_id:'D-04', disaster_name:'อุทกภัย'},
-    {disaster_id:'D-05', disaster_name:'ดินโคลนถล่ม'}, {disaster_id:'D-06', disaster_name:'ภัยหนาว'},
-    {disaster_id:'D-07', disaster_name:'PM2.5'}, {disaster_id:'D-10', disaster_name:'อัคคีภัย'},
-  ];
-  const senders = [{sender_id:'S-01', sender_name:'กรมป้องกันและบรรเทาสาธารณภัย'}, {sender_id:'S-02', sender_name:'กรมอุตุนิยมวิทยา'}];
-  const messages = ['ระวังน้ำท่วมฉับพลันและน้ำป่าไหลหลาก ขอให้ประชาชนเคลื่อนย้ายทรัพย์สินขึ้นที่สูง',
-    'มีฝนตกหนักต่อเนื่อง ระวังดินโคลนถล่มในพื้นที่ลาดเชิงเขา', 'แจ้งเตือนสถานการณ์คลี่คลายแล้ว ประชาชนสามารถกลับเข้าพื้นที่ได้ตามปกติ',
-    'ระวังพายุลมแรง ต้นไม้หักโค่น ให้หลีกเลี่ยงพื้นที่โล่งแจ้ง'];
-
-  const fact_cb = [], bridge_alert_location = [], dim_message = [];
-  const provincePool = PROVINCES;
-  let seq = 1;
-  for (let i = 0; i < 180; i++) {
-    const d = new Date(2025, Math.floor(Math.random()*20), 1 + Math.floor(Math.random()*28));
-    const dateId = 'D-' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
-    const ev = events[Math.floor(Math.random()*events.length)];
-    const ds = disasters[Math.floor(Math.random()*disasters.length)];
-    const sd = senders[Math.floor(Math.random()*senders.length)];
-    const alertId = 'CB-DEMO' + String(seq).padStart(4,'0');
-    const msgId = 'M-DEMO' + String(seq).padStart(4,'0');
-    fact_cb.push({ alert_id: alertId, date_id: dateId, time: String(Math.floor(Math.random()*24)).padStart(2,'0')+':'+String(Math.floor(Math.random()*60)).padStart(2,'0'),
-      sender_id: sd.sender_id, event_id: ev.event_id, message_id: msgId, disaster_id: ds.disaster_id,
-      title: ds.disaster_name + ' — แจ้งเตือนตัวอย่าง', duration_hour: [0.5,1,2,3][Math.floor(Math.random()*4)], send_count: 1 });
-    dim_message.push({ message_id: msgId, message_th: messages[Math.floor(Math.random()*messages.length)] });
-    const nAreas = 1 + Math.floor(Math.random()*3);
-    const used = new Set();
-    for (let k = 0; k < nAreas; k++) {
-      const p = provincePool[Math.floor(Math.random()*provincePool.length)];
-      if (used.has(p.code)) continue; used.add(p.code);
-      bridge_alert_location.push({ alert_id: alertId, level:'province', province_code:p.code, amphoe_code:'', tambon_code:'' });
-    }
-    seq++;
-  }
-  const dim_province = provincePool.map(p => ({ province_code:p.code, province_name_th:p.th, province_name_en:p.en, region:p.region }));
-  return { fact_cb, dim_message, bridge_alert_location, dim_province, dim_amphoe:[], dim_tambon:[], dim_event: events, dim_disaster: disasters, dim_sender: senders };
 }
 </script>
 </body>
