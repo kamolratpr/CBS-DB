@@ -36,7 +36,13 @@
   --shadow:0 1px 2px rgba(20,30,30,.04), 0 4px 14px rgba(20,30,30,.05);
 }
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:'Sarabun',sans-serif;font-size:16.5px;line-height:1.5;}
+body{margin:0;color:var(--text);font-family:'Sarabun',sans-serif;font-size:16.5px;line-height:1.5;
+  background:
+    linear-gradient(180deg, rgba(242,244,245,.93), rgba(242,244,245,.97)),
+    url('bg-people.png') center top / cover no-repeat;
+  background-attachment: fixed;
+}
+@media (max-width:900px){ body{ background-attachment: scroll; } }
 h1,h2,h3{font-family:'Sarabun',sans-serif;margin:0;}
 button,select,input{font-family:'Sarabun',sans-serif;}
 a{color:var(--brand);}
@@ -85,6 +91,8 @@ a{color:var(--brand);}
 .f-group label{font-size:13.5px;color:var(--text-soft);font-weight:600;}
 .f-group select,.f-group input[type=date]{padding:7px 9px;border:1px solid var(--border);border-radius:7px;
   font-size:15.5px;background:#fff;color:var(--text);}
+.f-group select[multiple]{height:118px;min-width:190px;}
+.f-group .f-hint{font-size:11px;color:var(--text-soft);}
 .f-clear{margin-left:auto;}
 
 /* ---------- KPI ---------- */
@@ -197,7 +205,7 @@ tbody tr:hover{background:#FAFBFB;}
   <div class="topbar-right">
     <div class="status-pill"><span class="status-dot"></span><span id="lastUpdated">กำลังโหลดข้อมูล...</span></div>
     <button class="btn" id="refreshBtn">↻ รีเฟรช</button>
-    <button class="btn" id="csvBtn">⬇ ดาวน์โหลด CSV</button>
+    <button class="btn" id="csvBtn">ดาวน์โหลด CSV</button>
     <button class="btn btn-brand" id="pngBtn">🖼 บันทึกภาพ (16:9)</button>
   </div>
 </div>
@@ -209,7 +217,7 @@ tbody tr:hover{background:#FAFBFB;}
     <div class="f-group"><label>วันที่เริ่มต้น</label><input type="date" id="fDateFrom"></div>
     <div class="f-group"><label>วันที่สิ้นสุด</label><input type="date" id="fDateTo"></div>
     <div class="f-group"><label>ภูมิภาค</label><select id="fRegion"><option value="">ทั้งหมด</option></select></div>
-    <div class="f-group"><label>จังหวัด</label><select id="fProvince"><option value="">ทั้งหมด</option></select></div>
+    <div class="f-group"><label>จังหวัด (เลือกได้หลายจังหวัด)</label><select id="fProvince" multiple></select><span class="f-hint">กด Ctrl/Cmd + คลิก เพื่อเลือกหลายจังหวัด หรือคลิกจังหวัดบนแผนที่</span></div>
     <div class="f-group"><label>อำเภอ</label><select id="fAmphoe"><option value="">ทั้งหมด</option></select></div>
     <div class="f-group"><label>ตำบล</label><select id="fTambon"><option value="">ทั้งหมด</option></select></div>
     <div class="f-group"><label>ประเภทภัยพิบัติ</label><select id="fDisaster"><option value="">ทั้งหมด</option></select></div>
@@ -230,7 +238,6 @@ tbody tr:hover{background:#FAFBFB;}
     <div class="kpi-card">
       <div class="kpi-label">จังหวัดที่ได้รับข้อความ</div>
       <div class="kpi-value" id="kpiProvinces">–</div>
-      <div class="kpi-sub">จาก 77 จังหวัดทั่วประเทศ</div>
     </div>
     <div class="kpi-card kpi-accent-alert">
       <div class="kpi-label">ประเภทภัยที่ส่งมากที่สุด</div>
@@ -342,6 +349,15 @@ const CONFIG = {
 const PROVINCES = [{"code":"10","th":"กรุงเทพมหานคร","en":"Bangkok","region":"ภาคกลาง"},{"code":"11","th":"สมุทรปราการ","en":"Samut Prakan","region":"ภาคกลาง"},{"code":"12","th":"นนทบุรี","en":"Nonthaburi","region":"ภาคกลาง"},{"code":"13","th":"ปทุมธานี","en":"Pathum Thani","region":"ภาคกลาง"},{"code":"14","th":"พระนครศรีอยุธยา","en":"Phra Nakhon Si Ayutthaya","region":"ภาคกลาง"},{"code":"15","th":"อ่างทอง","en":"Ang Thong","region":"ภาคกลาง"},{"code":"16","th":"ลพบุรี","en":"Lopburi","region":"ภาคกลาง"},{"code":"17","th":"สิงห์บุรี","en":"Sing Buri","region":"ภาคกลาง"},{"code":"18","th":"ชัยนาท","en":"Chai Nat","region":"ภาคกลาง"},{"code":"19","th":"สระบุรี","en":"Saraburi","region":"ภาคกลาง"},{"code":"20","th":"ชลบุรี","en":"Chon Buri","region":"ภาคกลาง"},{"code":"21","th":"ระยอง","en":"Rayong","region":"ภาคกลาง"},{"code":"22","th":"จันทบุรี","en":"Chanthaburi","region":"ภาคกลาง"},{"code":"23","th":"ตราด","en":"Trat","region":"ภาคกลาง"},{"code":"24","th":"ฉะเชิงเทรา","en":"Chachoengsao","region":"ภาคกลาง"},{"code":"25","th":"ปราจีนบุรี","en":"Prachin Buri","region":"ภาคกลาง"},{"code":"26","th":"นครนายก","en":"Nakhon Nayok","region":"ภาคกลาง"},{"code":"27","th":"สระแก้ว","en":"Sa Kaeo","region":"ภาคกลาง"},{"code":"30","th":"นครราชสีมา","en":"Nakhon Ratchasima","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"31","th":"บุรีรัมย์","en":"Buri Ram","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"32","th":"สุรินทร์","en":"Surin","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"33","th":"ศรีสะเกษ","en":"Si Sa Ket","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"34","th":"อุบลราชธานี","en":"Ubon Ratchathani","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"35","th":"ยโสธร","en":"Yasothon","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"36","th":"ชัยภูมิ","en":"Chaiyaphum","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"37","th":"อำนาจเจริญ","en":"Amnat Charoen","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"38","th":"บึงกาฬ","en":"Bueng Kan","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"39","th":"หนองบัวลำภู","en":"Nong Bua Lam Phu","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"40","th":"ขอนแก่น","en":"Khon Kaen","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"41","th":"อุดรธานี","en":"Udon Thani","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"42","th":"เลย","en":"Loei","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"43","th":"หนองคาย","en":"Nong Khai","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"44","th":"มหาสารคาม","en":"Maha Sarakham","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"45","th":"ร้อยเอ็ด","en":"Roi Et","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"46","th":"กาฬสินธุ์","en":"Kalasin","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"47","th":"สกลนคร","en":"Sakon Nakhon","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"48","th":"นครพนม","en":"Nakhon Phanom","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"49","th":"มุกดาหาร","en":"Mukdahan","region":"ภาคตะวันออกเฉียงเหนือ"},{"code":"50","th":"เชียงใหม่","en":"Chiang Mai","region":"ภาคเหนือ"},{"code":"51","th":"ลำพูน","en":"Lamphun","region":"ภาคเหนือ"},{"code":"52","th":"ลำปาง","en":"Lampang","region":"ภาคเหนือ"},{"code":"53","th":"อุตรดิตถ์","en":"Uttaradit","region":"ภาคเหนือ"},{"code":"54","th":"แพร่","en":"Phrae","region":"ภาคเหนือ"},{"code":"55","th":"น่าน","en":"Nan","region":"ภาคเหนือ"},{"code":"56","th":"พะเยา","en":"Phayao","region":"ภาคเหนือ"},{"code":"57","th":"เชียงราย","en":"Chiang Rai","region":"ภาคเหนือ"},{"code":"58","th":"แม่ฮ่องสอน","en":"Mae Hong Son","region":"ภาคเหนือ"},{"code":"60","th":"นครสวรรค์","en":"Nakhon Sawan","region":"ภาคเหนือ"},{"code":"61","th":"อุทัยธานี","en":"Uthai Thani","region":"ภาคเหนือ"},{"code":"62","th":"กำแพงเพชร","en":"Kamphaeng Phet","region":"ภาคเหนือ"},{"code":"63","th":"ตาก","en":"Tak","region":"ภาคเหนือ"},{"code":"64","th":"สุโขทัย","en":"Sukhothai","region":"ภาคเหนือ"},{"code":"65","th":"พิษณุโลก","en":"Phitsanulok","region":"ภาคเหนือ"},{"code":"66","th":"พิจิตร","en":"Phichit","region":"ภาคเหนือ"},{"code":"67","th":"เพชรบูรณ์","en":"Phetchabun","region":"ภาคเหนือ"},{"code":"70","th":"ราชบุรี","en":"Ratchaburi","region":"ภาคกลาง"},{"code":"71","th":"กาญจนบุรี","en":"Kanchanaburi","region":"ภาคกลาง"},{"code":"72","th":"สุพรรณบุรี","en":"Suphan Buri","region":"ภาคกลาง"},{"code":"73","th":"นครปฐม","en":"Nakhon Pathom","region":"ภาคกลาง"},{"code":"74","th":"สมุทรสาคร","en":"Samut Sakhon","region":"ภาคกลาง"},{"code":"75","th":"สมุทรสงคราม","en":"Samut Songkhram","region":"ภาคกลาง"},{"code":"76","th":"เพชรบุรี","en":"Phetchaburi","region":"ภาคกลาง"},{"code":"77","th":"ประจวบคีรีขันธ์","en":"Prachuap Khiri Khan","region":"ภาคกลาง"},{"code":"80","th":"นครศรีธรรมราช","en":"Nakhon Si Thammarat","region":"ภาคใต้"},{"code":"81","th":"กระบี่","en":"Krabi","region":"ภาคใต้"},{"code":"82","th":"พังงา","en":"Phangnga","region":"ภาคใต้"},{"code":"83","th":"ภูเก็ต","en":"Phuket","region":"ภาคใต้"},{"code":"84","th":"สุราษฎร์ธานี","en":"Surat Thani","region":"ภาคใต้"},{"code":"85","th":"ระนอง","en":"Ranong","region":"ภาคใต้"},{"code":"86","th":"ชุมพร","en":"Chumphon","region":"ภาคใต้"},{"code":"90","th":"สงขลา","en":"Songkhla","region":"ภาคใต้"},{"code":"91","th":"สตูล","en":"Satun","region":"ภาคใต้"},{"code":"92","th":"ตรัง","en":"Trang","region":"ภาคใต้"},{"code":"93","th":"พัทลุง","en":"Phatthalung","region":"ภาคใต้"},{"code":"94","th":"ปัตตานี","en":"Pattani","region":"ภาคใต้"},{"code":"95","th":"ยะลา","en":"Yala","region":"ภาคใต้"},{"code":"96","th":"นราธิวาส","en":"Narathiwat","region":"ภาคใต้"}];
 const PROVINCE_BY_CODE = Object.fromEntries(PROVINCES.map(p => [p.code, p]));
 const PROVINCE_BY_EN = Object.fromEntries(PROVINCES.map(p => [p.en, p]));
+// GeoJSON ที่ดึงมา (apisit/thailand.json) ใช้ชื่อภาษาอังกฤษบางจังหวัดต่างจากชื่อมาตรฐานในลิสต์ PROVINCES ด้านบน
+// เช่น กรุงเทพฯ ใน GeoJSON ใช้ "Bangkok Metropolis" แต่ลิสต์นี้ใช้ "Bangkok" ทำให้จับคู่ไม่เจอ -> คลิกบนแผนที่ไม่ทำงาน
+// (ลพบุรี ก็เจอปัญหาเดียวกัน: GeoJSON ใช้ "Lop Buri" ส่วนลิสต์นี้ใช้ "Lopburi")
+// จึงต้องมี alias map นี้ไว้แปลงชื่อจาก GeoJSON ให้ตรงกับ PROVINCE_BY_EN ก่อนค้นหาเสมอ
+const GEO_NAME_ALIAS = { 'Bangkok Metropolis': 'Bangkok', 'Lop Buri': 'Lopburi' };
+function provinceFromGeoFeature(feat) {
+  const geoName = feat.properties.name;
+  return PROVINCE_BY_EN[GEO_NAME_ALIAS[geoName] || geoName] || null;
+}
 
 const DISASTER_COLORS = ['#d16ba5','#c777b9','#ba83ca','#aa8fd8','#9a9ae1','#8aa7ec',
   '#79b3f4','#69bff8','#52cffe','#41dfff','#46eefa','#5ffbf1'];
@@ -488,7 +504,8 @@ function getFilters() {
     dateFrom: document.getElementById('fDateFrom').value,
     dateTo: document.getElementById('fDateTo').value,
     region: document.getElementById('fRegion').value,
-    province: document.getElementById('fProvince').value,
+    // จังหวัดเลือกได้หลายค่า -> คืนเป็น array เสมอ
+    provinces: [...document.getElementById('fProvince').selectedOptions].map(o => o.value),
     amphoe: document.getElementById('fAmphoe').value,
     tambon: document.getElementById('fTambon').value,
     disaster: document.getElementById('fDisaster').value,
@@ -505,7 +522,7 @@ function applyFilters() {
     if (from && r.date && r.date < from) return false;
     if (to && r.date && r.date > to) return false;
     if (f.region && r.region !== f.region) return false;
-    if (f.province && r.province_code !== f.province) return false;
+    if (f.provinces.length && !f.provinces.includes(r.province_code)) return false;
     if (f.amphoe && r.amphoe_code !== f.amphoe) return false;
     if (f.tambon && r.tambon_code !== f.tambon) return false;
     if (f.disaster && r.disaster_id !== f.disaster) return false;
@@ -516,7 +533,7 @@ function applyFilters() {
   const idSet = new Set(filteredAreaRows.map(r => r.alert_id));
   let filteredAlerts = ALERTS.filter(a => idSet.has(a.alert_id));
   // เผื่อ alert ไม่มีพื้นที่เลย (bridge ว่าง) ยังกรองตาม date/disaster/event ได้ตรงๆ
-  if (filteredAreaRows.length === 0 && !f.region && !f.province && !f.amphoe && !f.tambon) {
+  if (filteredAreaRows.length === 0 && !f.region && !f.provinces.length && !f.amphoe && !f.tambon) {
     filteredAlerts = ALERTS.filter(a => {
       if (from && a.date && a.date < from) return false;
       if (to && a.date && a.date > to) return false;
@@ -555,14 +572,21 @@ function populateFilterOptions() {
 
 function fillSelect(id, options) {
   const el = document.getElementById(id);
+  if (el.multiple) {
+    // เลือกได้หลายค่า: จำค่าที่เลือกไว้เดิม แล้ววาดใหม่โดยคงการเลือกที่ยังใช้ได้
+    const current = new Set([...el.selectedOptions].map(o => o.value));
+    el.innerHTML = options.map(o => '<option value="'+o.v+'">'+escapeHtml(o.l)+'</option>').join('');
+    [...el.options].forEach(o => { if (current.has(o.value)) o.selected = true; });
+    return;
+  }
   const current = el.value;
   el.innerHTML = '<option value="">ทั้งหมด</option>' + options.map(o => '<option value="'+o.v+'">'+escapeHtml(o.l)+'</option>').join('');
   if ([...el.options].some(o => o.value === current)) el.value = current;
 }
 
 function updateAmphoeOptions() {
-  const pcode = document.getElementById('fProvince').value;
-  const list = pcode ? (GEO.dim_amphoe||[]).filter(a => a.province_code === pcode) : [];
+  const pcodes = [...document.getElementById('fProvince').selectedOptions].map(o => o.value);
+  const list = pcodes.length ? (GEO.dim_amphoe||[]).filter(a => pcodes.includes(a.province_code)) : [];
   fillSelect('fAmphoe', list.map(a => ({v:a.amphoe_code,l:a.amphoe_name_th})));
 }
 function updateTambonOptions() {
@@ -579,8 +603,24 @@ function renderKpi(alerts, areaRows) {
     .sort((a,b)=>b[1]-a[1])
     .map(([k,v]) => '<span class="kpi-chip">'+k+' <span class="n">'+v+'</span></span>').join('') || '–';
 
-  const provinces = new Set(areaRows.map(r => r.province_code)).size;
-  document.getElementById('kpiProvinces').textContent = provinces;
+  // หมายเหตุ: ประเทศไทยมี 77 จังหวัดมาตรฐาน (ดูตัวแปร PROVINCES ด้านล่างของไฟล์นี้)
+  // ถ้าตัวเลขนี้เกิน 77 แปลว่าในฐานข้อมูล (Google Sheets) มี province_code ที่:
+  //  (ก) มีชนิดข้อมูลไม่ตรงกัน เช่น แถวหนึ่งเก็บเป็นข้อความ "10" อีกแถวเก็บเป็นตัวเลข 10 -> JS จะนับเป็นคนละค่ากัน
+  //  (ข) พิมพ์รหัสผิด/มีช่องว่างแฝง (เช่น "10 ") หรือมีรหัสที่ไม่อยู่ในรายชื่อ 77 จังหวัดจริง
+  // โค้ดด้านล่างนี้แปลงเป็นข้อความและตัดช่องว่างก่อนนับ พร้อมกรองรหัสที่ไม่รู้จักออก
+  // เพื่อไม่ให้ตัวเลขเพี้ยนเกิน 77 — แต่ควรไปแก้ที่ต้นทาง (Google Sheets) ด้วย
+  const validCodesSeen = new Set();
+  const invalidCodesSeen = new Set();
+  areaRows.forEach(r => {
+    const code = String(r.province_code || '').trim();
+    if (!code) return;
+    if (PROVINCE_BY_CODE[code]) validCodesSeen.add(code);
+    else invalidCodesSeen.add(code);
+  });
+  if (invalidCodesSeen.size) {
+    console.warn('[CBS Dashboard] พบ province_code ที่ไม่ตรงกับ 77 จังหวัดมาตรฐาน:', [...invalidCodesSeen]);
+  }
+  document.getElementById('kpiProvinces').textContent = validCodesSeen.size;
 
   const byDisaster = groupCount(alerts, a => a.disaster_name);
   const topDisaster = Object.entries(byDisaster).sort((a,b)=>b[1]-a[1])[0];
@@ -663,22 +703,44 @@ function renderMap(areaRows) {
 
   const draw = (geo) => {
     if (geoLayer) leafletMap.removeLayer(geoLayer);
+    const selectedCodes = [...document.getElementById('fProvince').selectedOptions].map(o => o.value);
     geoLayer = L.geoJSON(geo, {
       style: (feat) => {
-        const prov = PROVINCE_BY_EN[feat.properties.name];
+        const prov = provinceFromGeoFeature(feat);
         const c = prov ? (counts[prov.code] || 0) : 0;
         const t = c / max;
-        return { fillColor: mixColor(t), weight:1, color:'#fff', fillOpacity: c ? 0.85 : 0.35 };
+        const isSelected = prov && selectedCodes.includes(prov.code);
+        return { fillColor: mixColor(t), weight: isSelected ? 2.5 : 1,
+          color: isSelected ? '#1F2A2E' : '#fff', fillOpacity: c ? 0.85 : 0.35 };
       },
       onEachFeature: (feat, layer) => {
-        const prov = PROVINCE_BY_EN[feat.properties.name];
+        const prov = provinceFromGeoFeature(feat);
         const c = prov ? (counts[prov.code] || 0) : 0;
         layer.bindTooltip((prov ? prov.th : feat.properties.name) + ': ' + c + ' ครั้ง');
         layer.on('click', () => {
-          if (prov) { document.getElementById('fProvince').value = prov.code; onProvinceChange(); }
+          if (!prov) return;
+          // คลิกจังหวัดบนแผนที่ = สลับ (toggle) จังหวัดนั้นเข้า/ออกจากรายการที่เลือกไว้ ทำให้เลือกได้มากกว่า 1 จังหวัด
+          const sel = document.getElementById('fProvince');
+          const opt = [...sel.options].find(o => o.value === prov.code);
+          if (opt) opt.selected = !opt.selected;
+          onProvinceChange();
         });
       }
     }).addTo(leafletMap);
+
+    // ซูมเข้า/ออกอัตโนมัติตามจังหวัดที่เลือก
+    if (selectedCodes.length) {
+      const selectedLayers = [];
+      geoLayer.eachLayer(layer => {
+        const prov = provinceFromGeoFeature(layer.feature);
+        if (prov && selectedCodes.includes(prov.code)) selectedLayers.push(layer);
+      });
+      if (selectedLayers.length) {
+        leafletMap.fitBounds(L.featureGroup(selectedLayers).getBounds(), { padding: [24, 24], maxZoom: 9 });
+      }
+    } else {
+      leafletMap.setView([13.0, 101.0], 5.4);
+    }
   };
 
   if (geoJsonCache) { draw(geoJsonCache); return; }
@@ -703,7 +765,7 @@ function renderHotspots(areaRows) {
   if (f.amphoe) {
     level = 'tambon'; hint = 'แสดงระดับตำบล (กรองอยู่ที่ระดับอำเภอ)';
     keyFn = r => r.tambon_name || '(ไม่ระบุตำบล)';
-  } else if (f.province) {
+  } else if (f.provinces.length) {
     level = 'amphoe'; hint = 'แสดงระดับอำเภอ (กรองอยู่ที่ระดับจังหวัด)';
     keyFn = r => r.amphoe_name || '(ไม่ระบุอำเภอ)';
   } else {
@@ -801,7 +863,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fAmphoe').addEventListener('change', onAmphoeChange);
   document.getElementById('fTambon').addEventListener('change', () => renderAll(false));
   document.getElementById('clearFilters').addEventListener('click', () => {
-    ['fDateFrom','fDateTo','fRegion','fProvince','fAmphoe','fTambon','fDisaster','fEvent'].forEach(id => document.getElementById(id).value = '');
+    ['fDateFrom','fDateTo','fRegion','fAmphoe','fTambon','fDisaster','fEvent'].forEach(id => document.getElementById(id).value = '');
+    [...document.getElementById('fProvince').options].forEach(o => o.selected = false);
     updateAmphoeOptions(); updateTambonOptions(); renderAll(false);
   });
   document.getElementById('tableSearch').addEventListener('input', () => { tablePage=1; renderTable(applyFilters().alerts); });
